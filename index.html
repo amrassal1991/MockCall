@@ -1181,16 +1181,14 @@
       try {
         // --- Role-Play AI (Customer Response) ---
         // Construct customer payload with persona and initial complaint as system/user context
-        const customerPromptContent = [
-            { role: "system", parts: [{ text: customerPersona }] },
-            { role: "user", parts: [{ text: `The customer's initial complaint is: "${currentInitialCustomerScenarioText}".` }] }
-        ];
-        // Add recent chat history (last few turns)
-        customerPromptContent.push(...chatHistory.slice(-6)); // Limit history to last 6 turns for context
-        // Add the agent's current message
-        customerPromptContent.push({ role: "user", parts: [{ text: text }] });
+        const customerPrompt = `As the customer, respond to the agent's last message.
+        Customer Persona: ${customerPersona}
+        Initial Complaint: "${currentInitialCustomerScenarioText}"
+        Conversation History: ${JSON.stringify(chatHistory.slice(-6))}
+        Agent's Last Message: "${text}"
+        Your response:`;
 
-        const customerPayload = { contents: customerPromptContent };
+        const customerPayload = { contents: [{ role: "user", parts: [{ text: customerPrompt }] }] };
         console.log("Customer AI Request Payload:", JSON.stringify(customerPayload, null, 2));
 
         const customerRes = await fetch(GEMINI_API_URL, {
@@ -1200,7 +1198,16 @@
         });
         const customerData = await customerRes.json();
         console.log("Customer AI Raw Response:", JSON.stringify(customerData, null, 2)); // Log raw response
-        const customerReply = customerData.candidates?.[0]?.content?.parts?.[0]?.text || '(No customer response)';
+
+        let customerReply = '(No customer response)';
+        if (customerData.candidates && customerData.candidates.length > 0 &&
+            customerData.candidates[0].content && customerData.candidates[0].content.parts &&
+            customerData.candidates[0].content.parts.length > 0) {
+            customerReply = customerData.candidates[0].content.parts[0].text;
+        } else {
+            console.error("Customer AI did not return a valid response structure or content:", customerData);
+            customerReply = '(Customer AI did not generate a valid response)';
+        }
         
         addMessage(customerReply, 'ai', `${currentScenario.customerName}:`); // Add customer name
         chatHistory.push({ role: "user", parts: [{ text: text }] }); // Add agent's message to history
