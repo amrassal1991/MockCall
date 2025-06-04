@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Enhanced AI Call Simulator</title>
     <!-- Chosen Palette: Dark Theme - A modern, dark-themed palette using a near-black background (#0a0a0a), slightly lighter containers (#1a1a1a), and a vibrant blue accent (#1a6cd0) for interactive elements. Text is white for high contrast. Success and error states are indicated by green (#10b981) and red (#ef4444) respectively, providing clear visual feedback. -->
-    <!-- Application Structure Plan: The application is structured as a single-page dashboard centered around a three-bot AI simulation model. The UI is divided into three main areas: 1) A top-level 'Settings' bar for configuring the simulation (Tone, Language, Timeout). 2) The core 'Interaction' view with the chat transcript and controls. 3) A right-hand 'Live Analysis' sidebar where the Quality Coach Bot provides real-time feedback. A post-call modal provides the final report from the Organizer Bot, including an export function and a conditional survey. This structure was chosen to provide a clear, logical flow for the user: configure, interact, analyze, and review. It separates the distinct functions of the simulation (interaction vs. analysis) for better usability, while the three-bot JS architecture mirrors this functional separation in the code. -->
+    <!-- Application Structure Plan: The application is structured as a single-page dashboard centered around a three-bot AI simulation model. The UI is divided into three main areas: 1) A top-level 'Settings' bar for configuring the simulation (Tone, Language, Timeout, Customer Type, Topic). 2) The core 'Interaction' view with the chat transcript and controls. 3) A right-hand 'Live Analysis' sidebar where the Quality Coach Bot provides real-time feedback. A post-call modal provides the final report from the Organizer Bot, including an export function and a conditional survey. This structure was chosen to provide a clear, logical flow for the user: configure, interact, analyze, and review. It separates the distinct functions of the simulation (interaction vs. analysis) for better usability, while the three-bot JS architecture mirrors this functional separation in the code. -->
     <!-- Visualization & Content Choices: The primary content is the chat log, a familiar and intuitive text-based presentation. Key metrics from the Quality Coach are presented as numeric scores with emoji indicators (💡 for a new idea, ℹ️ for info) and concise text feedback, making them quickly scannable. The key new visualization is a bar chart in the final report (Goal: Show Change), generated with Chart.js, which tracks the quality score turn-by-turn, allowing for easy identification of trends and pivotal moments in the conversation. The final report itself (Goal: Organize/Inform) is a structured text block with clear headings, making complex analysis digestible. User feedback is collected via standard form elements (range slider for rating, textarea for verbatim) for ease of use. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -67,6 +67,7 @@
         <header class="flex items-center justify-between p-3 bg-white border-b border-gray-200 shadow-sm">
             <h1 class="text-xl font-bold text-gray-800">AI Call Simulator</h1>
             <div class="flex items-center space-x-4">
+                 <!-- Settings Section -->
                  <div class="flex items-center space-x-2">
                     <label for="tone-select" class="font-medium text-gray-600">Tone:</label>
                     <select id="tone-select" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
@@ -77,15 +78,39 @@
                     </select>
                 </div>
                  <div class="flex items-center space-x-2">
+                    <label for="timeout-input" class="font-medium text-gray-600">Auto-Send (s):</label>
+                    <input type="number" id="timeout-input" value="3" min="1" max="10" class="w-16 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+
+                <!-- Persona Section -->
+                 <div class="flex items-center space-x-2">
+                    <label for="customer-type-select" class="font-medium text-gray-600">Customer Type:</label>
+                    <select id="customer-type-select" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="Any">Any</option>
+                        <option value="Frustrated">Frustrated</option>
+                        <option value="Inquiry">Inquiry</option>
+                        <option value="Rude">Rude</option>
+                        <option value="Fraudster (Simulated)">Fraudster (Simulated)</option>
+                    </select>
+                </div>
+                 <div class="flex items-center space-x-2">
+                    <label for="topic-select" class="font-medium text-gray-600">Topic:</label>
+                    <select id="topic-select" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="Any">Any</option>
+                        <option value="Internet Service">Internet Service</option>
+                        <option value="Internet Speed">Internet Speed</option>
+                        <option value="Billing">Billing</option>
+                        <option value="Account Security">Account Security</option>
+                        <option value="Technical Support">Technical Support</option>
+                        <option value="Service Complaint">Service Complaint</option>
+                    </select>
+                </div>
+                 <div class="flex items-center space-x-2">
                     <label for="lang-select" class="font-medium text-gray-600">Language:</label>
                     <select id="lang-select" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="en-US">English</option>
                         <option value="es-ES">Spanish</option>
                     </select>
-                </div>
-                 <div class="flex items-center space-x-2">
-                    <label for="timeout-input" class="font-medium text-gray-600">Auto-Send (s):</label>
-                    <input type="number" id="timeout-input" value="3" min="1" max="10" class="w-16 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 </div>
                 <button id="new-call-btn" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75">
                     New Call
@@ -190,8 +215,44 @@
     <script type="module">
         // --- DATA ---
         const complaints = {
-            internet: [{id: "int_001",type: "Service Interruption",scenario: "Internet service has been intermittent for the past 24 hours, affecting business operations",initialComplaint: { "en-US": "My business internet keeps dropping every hour! We've lost thousands in sales because our payment system is down. This is completely unacceptable for a business account!", "es-ES": "¡El internet de mi negocio se cae cada hora! Hemos perdido miles en ventas porque nuestro sistema de pago no funciona. ¡Esto es completamente inaceptable para una cuenta de negocios!"}, customerName: "Maria Garcia",difficulty: "high"},{id: "int_002",type: "Speed Issues",scenario: "Business customer reporting significantly slower speeds than promised",initialComplaint: { "en-US": "We're only getting 50Mbps when we're paying for 300Mbps. Our video conferences with clients keep freezing!", "es-ES": "Solo estamos recibiendo 50Mbps cuando pagamos por 300Mbps. ¡Nuestras videoconferencias con clientes se congelan!"}, customerName: "John Smith",difficulty: "medium"}],
-            billing: [{id: "bill_001",type: "Incorrect Charge",scenario: "Customer sees an unexpected charge on their monthly bill",initialComplaint: { "en-US": "Why was I charged for 'premium support'? I never asked for that and I want it removed immediately.", "es-ES": "¿Por qué me cobraron por 'soporte premium'? Nunca lo pedí y quiero que lo quiten de inmediato."}, customerName: "David Chen",difficulty: "low"}],
+            internet: [{id: "int_001",type: "Service Interruption",scenario: "Internet service has been intermittent for the past 24 hours, affecting business operations",initialComplaint: { "en-US": "My business internet keeps dropping every hour! We've lost thousands in sales because our payment system is down. This is completely unacceptable for a business account!", "es-ES": "¡El internet de mi negocio se cae cada hora! Hemos perdido miles en ventas porque nuestro sistema de pago no funciona. ¡Esto es completamente inaceptable para una cuenta de negocios!"}, customerName: "Maria Garcia",difficulty: "high", customerType: "Frustrated", topic: "Internet Service"},{id: "int_002",type: "Speed Issues",scenario: "Business customer reporting significantly slower speeds than promised",initialComplaint: { "en-US": "We're only getting 50Mbps when we're paying for 300Mbps. Our video conferences with clients keep freezing!", "es-ES": "Solo estamos recibiendo 50Mbps cuando pagamos por 300Mbps. ¡Nuestras videoconferencias con clientes se congelan!"}, customerName: "John Smith",difficulty: "medium", customerType: "Inquiry", topic: "Internet Speed"}],
+            billing: [{id: "bill_001",type: "Incorrect Charge",scenario: "Customer sees an unexpected charge on their monthly bill",initialComplaint: { "en-US": "Why was I charged for 'premium support'? I never asked for that and I want it removed immediately.", "es-ES": "¿Por qué me cobraron por 'soporte premium'? Nunca lo pedí y quiero que lo quiten de inmediato."}, customerName: "David Chen",difficulty: "low", customerType: "Inquiry", topic: "Billing"}],
+            fraud: [
+                {
+                    id: "fraud_001",
+                    type: "Unauthorized Activity",
+                    scenario: "Customer reports suspicious activity on their account",
+                    initialComplaint: { "en-US": "Someone used my account to order services I didn't authorize! This is fraud!", "es-ES": "¡Alguien usó mi cuenta para pedir servicios que no autoricé! ¡Esto es un fraude!"},
+                    customerName: "Sarah Connor",
+                    difficulty: "critical",
+                    customerType: "Fraudster (Simulated)",
+                    topic: "Account Security"
+                }
+            ],
+            technical: [
+                {
+                    id: "tech_001",
+                    type: "Technical Support",
+                    scenario: "Customer needs help setting up new equipment",
+                    initialComplaint: { "en-US": "I just got my new modem, but I can't get it to connect to the internet. Can you walk me through it?", "es-ES": "Acabo de recibir mi nuevo módem, pero no puedo conectarlo a internet. ¿Puedes guiarme?"},
+                    customerName: "Robert Johnson",
+                    difficulty: "low",
+                    customerType: "Inquiry",
+                    topic: "Technical Support"
+                }
+            ],
+            rude: [
+                {
+                    id: "rude_001",
+                    type: "Service Complaint",
+                    scenario: "Customer is extremely angry about a recent service interaction",
+                    initialComplaint: { "en-US": "This is the third time I've called about this! Your service is absolutely terrible, and I want to speak to a supervisor NOW!", "es-ES": "¡Esta es la tercera vez que llamo por esto! ¡Su servicio es absolutamente terrible y quiero hablar con un supervisor AHORA MISMO!"},
+                    customerName: "Karen Miller",
+                    difficulty: "critical",
+                    customerType: "Rude",
+                    topic: "Service Complaint"
+                }
+            ]
         };
 
         // --- CORE APPLICATION LOGIC ---
@@ -208,6 +269,8 @@
                 this.toneSelect = document.getElementById('tone-select');
                 this.langSelect = document.getElementById('lang-select');
                 this.timeoutInput = document.getElementById('timeout-input');
+                this.customerTypeSelect = document.getElementById('customer-type-select'); // New
+                this.topicSelect = document.getElementById('topic-select'); // New
                 this.newCallBtn = document.getElementById('new-call-btn');
                 this.reportModal = document.getElementById('report-modal');
                 this.closeReportBtn = document.getElementById('close-report-btn');
@@ -279,10 +342,25 @@
                 // Get settings
                 const lang = this.langSelect.value;
                 this.state.currentLanguage = lang;
+                const selectedCustomerType = this.customerTypeSelect.value;
+                const selectedTopic = this.topicSelect.value;
                 
-                // Select a random scenario
-                const allScenarios = Object.values(complaints).flat();
-                this.state.currentScenario = allScenarios[Math.floor(Math.random() * allScenarios.length)];
+                // Select a random scenario based on filters
+                let availableScenarios = Object.values(complaints).flat();
+
+                if (selectedCustomerType !== 'Any') {
+                    availableScenarios = availableScenarios.filter(s => s.customerType === selectedCustomerType);
+                }
+                if (selectedTopic !== 'Any') {
+                    availableScenarios = availableScenarios.filter(s => s.topic === selectedTopic);
+                }
+
+                if (availableScenarios.length === 0) {
+                    this.addMessage(lang === 'es-ES' ? 'No se encontraron escenarios con los filtros seleccionados. Reiniciando con cualquier escenario.' : 'No scenarios found with selected filters. Resetting with any scenario.', 'system');
+                    availableScenarios = Object.values(complaints).flat(); // Fallback to all scenarios
+                }
+
+                this.state.currentScenario = availableScenarios[Math.floor(Math.random() * availableScenarios.length)];
                 
                 const scenarioText = this.state.currentScenario.initialComplaint[lang];
                 this.state.customerPersona = this.getPersonaPrompt(this.state.currentScenario.customerName, scenarioText);
@@ -518,7 +596,7 @@ Scores are penalized for lack of context, repetitive phrases, and failure to de-
                      `As an AI Organizer Bot, analyze the following call transcript and quality scores.
                       Transcript: ${JSON.stringify(this.state.fullConversationForReport)}
                       Quality Scores per turn: ${this.state.qualityScores.join(', ')}
-                      Create a report with: 1. A concise summary of the call. 2. An assessment of the agent's performance (strengths/weaknesses). 3. Self-healing recommendations for the system (e.g., "Suggest modifying complaint script to better handle X.").
+                      Create a report with: 1. A concise summary of the call. 2. An assessment of the agent's performance (fortalezas/debilidades). 3. Self-healing recommendations for the system (e.g., "Suggest modifying complaint script to better handle X.").
                       Return only a JSON object with keys "summary", "assessment", and "recommendations".`;
 
                 try {
@@ -682,7 +760,7 @@ ${fullTranscript}
 
         class GeminiAPIService {
             constructor() {
-                this.API_KEY = ""; // Use environment variable or secure method in a real app
+                this.API_KEY = "AIzaSyDEdZtmIWDlMIEgL3c73Gxu0aXoAkt3MWE"; // Updated API Key
                 this.API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.API_KEY}`;
             }
 
