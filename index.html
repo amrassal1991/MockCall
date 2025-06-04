@@ -1,1670 +1,723 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Call Simulator Comcast SMB wave. 24</title>
-  <style>
-    :root {
-      --bg-main: #0a0a0a;
-      --bg-container: #1a1a1a;
-      --bg-message-ai: #2d2d2d;
-      --bg-message-user: #1a6cd0;
-      --text-main: #ffffff;
-      --text-secondary: #a0a0a0;
-      --accent-color: #1a6cd0;
-      --success-color: #10b981;
-      --error-color: #ef4444;
-      --quality-bg: #2d2d2d; /* Darker background for quality panel */
-      --quality-border: #444;
-      --quality-score-good: #10b981; /* Green for good score */
-      --quality-score-bad: #ef4444; /* Red for bad score */
-      --quality-score-neutral: #f59e0b; /* Amber for neutral/needs improvement */
-      color-scheme: dark;  /* Tells browser this is a dark theme */
-    }
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Enhanced AI Call Simulator</title>
+    <!-- Chosen Palette: Dark Theme - A modern, dark-themed palette using a near-black background (#0a0a0a), slightly lighter containers (#1a1a1a), and a vibrant blue accent (#1a6cd0) for interactive elements. Text is white for high contrast. Success and error states are indicated by green (#10b981) and red (#ef4444) respectively, providing clear visual feedback. -->
+    <!-- Application Structure Plan: The application is structured as a single-page dashboard centered around a three-bot AI simulation model. The UI is divided into three main areas: 1) A top-level 'Settings' bar for configuring the simulation (Tone, Language, Timeout). 2) The core 'Interaction' view with the chat transcript and controls. 3) A right-hand 'Live Analysis' sidebar where the Quality Coach Bot provides real-time feedback. A post-call modal provides the final report from the Organizer Bot, including an export function and a conditional survey. This structure was chosen to provide a clear, logical flow for the user: configure, interact, analyze, and review. It separates the distinct functions of the simulation (interaction vs. analysis) for better usability, while the three-bot JS architecture mirrors this functional separation in the code. -->
+    <!-- Visualization & Content Choices: The primary content is the chat log, a familiar and intuitive text-based presentation. Key metrics from the Quality Coach are presented as numeric scores with emoji indicators (💡 for a new idea, ℹ️ for info) and concise text feedback, making them quickly scannable. The key new visualization is a bar chart in the final report (Goal: Show Change), generated with Chart.js, which tracks the quality score turn-by-turn, allowing for easy identification of trends and pivotal moments in the conversation. The final report itself (Goal: Organize/Inform) is a structured text block with clear headings, making complex analysis digestible. User feedback is collected via standard form elements (range slider for rating, textarea for verbatim) for ease of use. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-main: #f4f4f5; /* Light Gray */
+            --bg-container: #ffffff;
+            --bg-message-ai: #e4e4e7; /* Lighter Gray */
+            --bg-message-user: #3b82f6; /* Blue */
+            --text-main: #18181b; /* Near Black */
+            --text-secondary: #52525b;
+            --text-user-message: #ffffff;
+            --accent-color: #3b82f6;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --quality-bg: #e4e4e7;
+            --quality-border: #d4d4d8;
+            --quality-score-good: #10b981;
+            --quality-score-bad: #ef4444;
+            --quality-score-neutral: #f59e0b;
+        }
 
-    body {
-      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--bg-main);
-      color: var(--text-main);
-      margin: 0;
-      padding: 0;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            overflow: hidden;
+        }
+        
+        .chat-container::-webkit-scrollbar { width: 6px; }
+        .chat-container::-webkit-scrollbar-track { background: #f1f1f1; }
+        .chat-container::-webkit-scrollbar-thumb { background: #888; border-radius: 3px;}
+        .chat-container::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        .tooltip {
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
 
-    .main-layout {
-      flex: 1;
-      max-width: 1200px; /* Increased max-width to accommodate two columns */
-      margin: 1rem auto;
-      width: 100%;
-      display: flex;
-      gap: 1rem; /* Gap between chat and quality panel */
-      height: calc(100vh - 2rem);
-      flex-direction: row; /* Default for desktop */
-    }
-
-    .container {
-      flex: 2.5; /* Chat container takes more space */
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      background: var(--bg-container);
-      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-      border-radius: 12px;
-      backdrop-filter: blur(10px);
-    }
-
-    .quality-panel-wrapper {
-      flex: 1.5; /* Quality panel wrapper takes less space */
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .quality-panel {
-      background: var(--quality-bg);
-      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-      border-radius: 12px;
-      padding: 1rem;
-      display: flex;
-      flex-direction: column;
-      border: 1px solid var(--quality-border);
-      flex: 2; /* Increased flex to make it bigger */
-    }
-
-    .quality-panel h2 {
-      font-size: 1.3rem;
-      font-weight: 600;
-      color: var(--text-main);
-      margin-bottom: 1rem;
-      text-align: center;
-    }
-
-    .quality-feedback-content {
-      flex: 1;
-      overflow-y: auto;
-      padding-right: 0.5rem; /* For scrollbar space */
-    }
-
-    .quality-comment {
-      background: rgba(255,255,255,0.05);
-      border-left: 4px solid var(--quality-score-neutral);
-      padding: 0.8rem;
-      border-radius: 8px;
-      margin-bottom: 0.8rem;
-      font-size: 0.9rem;
-      line-height: 1.4;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      position: relative; /* For info button positioning */
-    }
-
-    .quality-comment.good { border-color: var(--quality-score-good); }
-    .quality-comment.bad { border-color: var(--quality-score-bad); }
-
-    .quality-comment strong {
-      color: var(--text-main);
-    }
-
-    .quality-feedback-content::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    .quality-feedback-content::-webkit-scrollbar-track {
-      background: var(--quality-bg);
-    }
-
-    .quality-feedback-content::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.2);
-      border-radius: 3px;
-    }
-
-    .quality-feedback-content::-webkit-scrollbar-thumb:hover {
-      background: rgba(255,255,255,0.3);
-    }
-
-    /* Info button for quality feedback */
-    .quality-info-btn {
-        position: absolute;
-        top: 0.5rem;
-        right: 0.5rem;
-        background: none;
-        border: none;
-        color: var(--text-secondary);
-        font-size: 0.9rem;
-        cursor: pointer;
-        opacity: 0.7;
-        transition: opacity 0.2s, color 0.2s;
-    }
-    .quality-info-btn:hover {
-        opacity: 1;
-        color: var(--accent-color);
-    }
-
-    @media (max-width: 768px) {
-      .main-layout {
-        flex-direction: column;
-        height: auto;
-        margin: 0.5rem;
-      }
-      .container, .quality-panel, .quality-panel-wrapper {
-        flex: none;
-        width: auto;
-        margin-bottom: 1rem;
-      }
-      .quality-panel, .s4-progress-panel {
-        height: auto; /* Allow height to adjust on mobile */
-      }
-    }
-
-    .header {
-      background: var(--accent-color);
-      color: var(--text-main);
-      padding: 1rem;
-      text-align: center;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      border-top-left-radius: 12px;
-      border-top-right-radius: 12px;
-      backdrop-filter: blur(8px);
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-    }
-
-    .header h1 {
-      margin: 0;
-      font-size: 1.5rem;
-      font-weight: 600;
-      letter-spacing: -0.02em;
-    }
-
-    .chat-container {
-      flex: 1;
-      overflow-y: auto;
-      padding: 1rem;
-      background: var(--bg-container);
-    }
-
-    .messages {
-      display: flex;
-      flex-direction: column;
-      gap: 0.8rem;
-      padding-bottom: 1rem;
-    }
-
-    .message {
-      max-width: 70%;
-      padding: 0.8rem 1rem;
-      border-radius: 1rem;
-      position: relative;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      animation: fadeIn 0.3s ease-in;
-      font-size: 0.95rem;
-      line-height: 1.5;
-      transition: all 0.2s ease-out;
-    }
-
-    /* Typing indicator animation */
-    .message.user:not(.sent)::after {
-      content: '';
-      display: inline-block;
-      width: 4px;
-      height: 4px;
-      background: rgba(255,255,255,0.7);
-      border-radius: 50%;
-      margin-left: 4px;
-      vertical-align: middle;
-      animation: blink 1s infinite;
-    }
-
-    .message.user {
-      align-self: flex-end;
-      background: var(--bg-message-user);
-      color: white;
-      border-bottom-right-radius: 0.4rem;
-      margin-left: 2rem;
-    }
-
-    .message.ai {
-      align-self: flex-start;
-      background: var(--bg-message-ai);
-      color: var(--text-main);
-      border-bottom-left-radius: 0.4rem;
-      margin-right: 2rem;
-      border: 1px solid rgba(255,255,255,0.1);
-    }
-
-    .message .sender-name {
-        font-weight: bold;
-        margin-bottom: 0.2rem;
-        display: block;
-        color: rgba(255,255,255,0.7);
-        font-size: 0.85rem;
-    }
-    .message.user .sender-name {
-        text-align: right;
-        color: rgba(255,255,255,0.8);
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Custom scrollbar for Webkit browsers */
-    .chat-container::-webkit-scrollbar, .quality-feedback-content::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .chat-container::-webkit-scrollbar-track, .quality-feedback-content::-webkit-scrollbar-track {
-      background: var(--bg-container);
-    }
-
-    .chat-container::-webkit-scrollbar-thumb, .quality-feedback-content::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.2);
-      border-radius: 4px;
-    }
-
-    .chat-container::-webkit-scrollbar-thumb:hover, .quality-feedback-content::-webkit-scrollbar-thumb:hover {
-      background: rgba(255,255,255,0.3);
-    }
-
-    .controls {
-      padding: 1rem;
-      background: var(--bg-container);
-      border-top: 1px solid rgba(255,255,255,0.1);
-      display: flex;
-      flex-direction: column;
-      gap: 0.8rem;
-      border-bottom-left-radius: 12px;
-      border-bottom-right-radius: 12px;
-    }
-
-    .button-group {
-      display: flex;
-      gap: 1rem;
-      justify-content: center;
-    }
-
-    .control-button {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.8rem 1.2rem;
-      border: none;
-      border-radius: 24px;
-      background: var(--accent-color);
-      color: white;
-      cursor: pointer;
-      font-size: 1rem;
-      transition: all 0.2s;
-      font-weight: 500;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      backdrop-filter: blur(4px);
-    }
-
-    .control-button:hover:not(:disabled) {
-      background: #006cbd;
-    }
-
-    .control-button:disabled {
-      background: #cccccc;
-      cursor: not-allowed;
-      opacity: 0.7;
-    }
-
-    .control-button .button-icon {
-      font-size: 1.2rem;
-    }
-
-    .record-button {
-      background: #10b981;
-    }
-
-    .record-button:hover:not(:disabled) {
-      background: #059669;
-      transform: translateY(-1px);
-    }
-
-    .record-button.recording {
-      background: #ef4444;
-      animation: pulse 1.5s infinite;
-    }
-
-    .mute-button {
-      background: #6b7280;
-    }
-
-    .mute-button:hover:not(:disabled) {
-      background: #4b5563;
-    }
-
-    .mute-button.muted {
-      background: #ef4444;
-    }
-
-    .cancel-button {
-      background: #ef4444;
-    }
-
-    .cancel-button:hover:not(:disabled) {
-      background: #dc2626;
-      transform: translateY(-1px);
-    }
-
-    .control-button:hover:not(:disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-      70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-    }
-
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0; }
-    }
-
-    .status-bar {
-      background: rgba(0,0,0,0.03);
-      padding: 0.5rem;
-      border-radius: 12px;
-      margin-top: 0.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-    }
-
-    .mic-button:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
-
-    .status {
-      flex: 1;
-      text-align: center;
-      color: var(--text-secondary);
-      font-size: 0.9rem;
-    }
-
-    #loader {
-      display: none;
-      color: var(--accent-color);
-      font-size: 0.9rem;
-    }
-
-    /* Modal styles */
-    .modal {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      opacity: 0;
-      visibility: hidden;
-      transition: opacity 0.3s ease, visibility 0.3s ease;
-    }
-    .modal.show {
-      opacity: 1;
-      visibility: visible;
-    }
-    .modal-content {
-      background: #23272f;
-      color: #fff;
-      border-radius: 10px;
-      padding: 2rem;
-      min-width: 320px;
-      max-width: 90vw;
-      box-shadow: 0 4px 32px rgba(0,0,0,0.4);
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      position: relative; /* For close button positioning */
-    }
-    .modal-content label {
-      display: flex;
-      flex-direction: column;
-      gap: 0.2rem;
-      font-size: 1rem;
-    }
-    .modal-content input[type="text"],
-    .modal-content input[type="number"],
-    .modal-content select,
-    .modal-content textarea {
-      margin-top: 0.2rem;
-      border-radius: 6px;
-      border: 1px solid #444;
-      background: #181c22;
-      color: #fff;
-      padding: 0.4rem 0.6rem;
-      font-size: 1rem;
-    }
-    .modal-content textarea {
-      resize: vertical;
-    }
-    .modal-actions {
-      display: flex;
-      gap: 1rem;
-      justify-content: flex-end;
-    }
-    .modal-actions button {
-      background: var(--accent-color);
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .modal-actions button:hover {
-      background: #0e4a8a;
-    }
-    .modal-close-button {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: none;
-      border: none;
-      font-size: 1.5rem;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: color 0.2s;
-    }
-    .modal-close-button:hover {
-      color: var(--text-main);
-    }
-
-    /* S4 Progress Panel */
-    .s4-progress-panel {
-        background: var(--quality-bg);
-        box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-        border-radius: 12px;
-        padding: 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        border: 1px solid var(--quality-border);
-        flex: 1; /* Reduced flex to make it smaller */
-    }
-
-    .s4-progress-panel h2 {
-        font-size: 1.3rem;
-        font-weight: 600;
-        color: var(--text-main);
-        margin-bottom: 0.5rem;
-        text-align: center;
-    }
-
-    .s4-phase {
-        display: flex;
-        align-items: center;
-        gap: 0.8rem;
-        padding: 0.6rem 0.8rem;
-        background: rgba(255,255,255,0.05);
-        border-radius: 8px;
-        transition: background 0.3s ease;
-    }
-
-    .s4-phase.active {
-        background: rgba(26, 108, 208, 0.2); /* Light blue for active */
-        border: 1px solid var(--accent-color);
-    }
-    .s4-phase.completed {
-        background: rgba(16, 185, 129, 0.2); /* Light green for completed */
-        border: 1px solid var(--success-color);
-    }
-
-    .s4-indicator-bulb {
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background-color: #555; /* Default grey */
-        box-shadow: 0 0 5px rgba(0,0,0,0.5);
-        transition: background-color 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .s4-phase.active .s4-indicator-bulb {
-        background-color: var(--accent-color); /* Neon blue */
-        box-shadow: 0 0 8px var(--accent-color), 0 0 15px var(--accent-color);
-    }
-    .s4-phase.completed .s4-indicator-bulb {
-        background-color: var(--success-color); /* Neon green */
-        box-shadow: 0 0 8px var(--success-color), 0 0 15px var(--success-color);
-    }
-
-    .s4-phase-content {
-        flex: 1;
-    }
-
-    .s4-phase-title {
-        font-weight: 600;
-        color: var(--text-main);
-        font-size: 1rem;
-    }
-
-    .s4-phase-description {
-        font-size: 0.85rem;
-        color: var(--text-secondary);
-        margin-top: 0.2rem;
-    }
-  </style>
+        .has-tooltip:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        #loader-overlay {
+            z-index: 50;
+        }
+    </style>
 </head>
-<body>
-  <div class="main-layout">
-    <!-- Quality and S4 panel wrapper - now on the left -->
-    <div class="quality-panel-wrapper">
-      <div class="quality-panel">
-        <h2>Quality Feedback</h2>
-        <div class="quality-feedback-content" id="quality-feedback-panel">
-          <div class="quality-comment">Feedback will appear here after each of your responses.</div>
-        </div>
-      </div>
-      <div class="s4-progress-panel">
-        <h2>S4 Progress</h2>
-        <div id="s4-phases-container">
-          <div class="s4-phase" id="s1-phase">
-            <div class="s4-indicator-bulb"></div>
-            <div class="s4-phase-content">
-              <div class="s4-phase-title">S1: Start</div>
-              <div class="s4-phase-description">Greeting, Reflect Reason, Empathize, Take Ownership, Authenticate/Set Agenda.</div>
+
+<body class="flex h-screen w-screen text-sm">
+
+    <!-- Main container -->
+    <div class="flex flex-col h-full w-full bg-gray-100">
+
+        <!-- Header/Settings -->
+        <header class="flex items-center justify-between p-3 bg-white border-b border-gray-200 shadow-sm">
+            <h1 class="text-xl font-bold text-gray-800">AI Call Simulator</h1>
+            <div class="flex items-center space-x-4">
+                 <div class="flex items-center space-x-2">
+                    <label for="tone-select" class="font-medium text-gray-600">Tone:</label>
+                    <select id="tone-select" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="Professional">Professional</option>
+                        <option value="Empathetic">Empathetic</option>
+                        <option value="Direct">Direct</option>
+                        <option value="Friendly">Friendly</option>
+                    </select>
+                </div>
+                 <div class="flex items-center space-x-2">
+                    <label for="lang-select" class="font-medium text-gray-600">Language:</label>
+                    <select id="lang-select" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="en-US">English</option>
+                        <option value="es-ES">Spanish</option>
+                    </select>
+                </div>
+                 <div class="flex items-center space-x-2">
+                    <label for="timeout-input" class="font-medium text-gray-600">Auto-Send (s):</label>
+                    <input type="number" id="timeout-input" value="3" min="1" max="10" class="w-16 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <button id="new-call-btn" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75">
+                    New Call
+                </button>
             </div>
-          </div>
-          <div class="s4-phase" id="s2-phase">
-            <div class="s4-indicator-bulb"></div>
-            <div class="s4-phase-content">
-              <div class="s4-phase-title">S2: Solve</div>
-              <div class="s4-phase-description">Obtain Info/Probe, Resolve Issue, Build Value/Promote.</div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex flex-1 overflow-hidden p-4 gap-4">
+
+            <!-- Left Panel: Chat -->
+            <div class="flex flex-col w-2/3 bg-white rounded-lg shadow-md border border-gray-200">
+                <div id="chat-messages" class="flex-1 p-4 space-y-4 overflow-y-auto chat-container">
+                    <!-- Messages will be injected here -->
+                </div>
+                <div class="p-4 border-t border-gray-200">
+                    <div id="status" class="text-center text-gray-500 mb-2 h-5"></div>
+                    <div class="flex items-center space-x-2">
+                        <textarea id="message-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Speak or type your message..." rows="2"></textarea>
+                        <button id="mic-btn" class="p-3 bg-gray-200 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <svg class="w-6 h-6 text-gray-600" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z"/><path d="M5.5 11.5a5.5 5.5 0 0011 0h-1.5a4 4 0 01-8 0H5.5z"/><path d="M3 10a.5.5 0 00.5.5v1a4.5 4.5 0 008.552 2.036.5.5 0 10-.9-.408A3.5 3.5 0 018.5 14.5v-1a.5.5 0 00-1 0v1a.5.5 0 001 0v-1a.5.5 0 00-1 0v1a.5.5 0 001 0V12a.5.5 0 00-1 0v.5a3.5 3.5 0 01-7 0v-.5a.5.5 0 00-1 0v.5A4.5 4.5 0 008 15.91V16H5a1 1 0 000 2h10a1 1 0 000-2h-3v-.09A4.5 4.5 0 0016.5 11.5v-.5a.5.5 0 00-1 0v.5a3.5 3.5 0 01-7 0v-.5a.5.5 0 00-.5-.5H3z"/></svg>
+                        </button>
+                    </div>
+                </div>
             </div>
-          </div>
-          <div class="s4-phase" id="s3-phase">
-            <div class="s4-indicator-bulb"></div>
-            <div class="s4-phase-content">
-              <div class="s4-phase-title">S3: Sell</div>
-              <div class="s4-phase-description">Transition to Offer, Present Offer, Overcome Objections, Proactively Close Sale.</div>
+
+            <!-- Right Panel: Live Analysis -->
+            <div class="flex flex-col w-1/3 bg-white rounded-lg shadow-md border border-gray-200">
+                <h2 class="p-4 text-lg font-bold border-b border-gray-200">Live Quality Analysis</h2>
+                <div id="quality-feedback-panel" class="flex-1 p-4 space-y-3 overflow-y-auto">
+                   <div class="text-gray-500 text-center pt-8">Waiting for first interaction...</div>
+                </div>
             </div>
-          </div>
-          <div class="s4-phase" id="s4-phase">
-            <div class="s4-indicator-bulb"></div>
-            <div class="s4-phase-content">
-              <div class="s4-phase-title">S4: Summarize</div>
-              <div class="s4-phase-description">Summarize Actions, Close Contact, Documentation.</div>
-            </div>
-          </div>
-        </div>
-      </div>
+
+        </main>
     </div>
-
-    <div class="container">
-      <div class="header">
-        <h1>Call Simulator 🎧</h1>
-      </div>
-      <div class="chat-container" id="chat">
-        <div class="messages">
-          <!-- Initial message will be added by startNewRolePlay() -->
-        </div>
-      </div>
-      <div class="controls">
-        <div class="button-group">
-          <button class="control-button record-button" id="mic-btn" title="Start/Stop recording">
-            <span class="button-icon">🎤</span>
-            <span class="button-text">Hold to Talk</span>
-          </button>
-          <button class="control-button mute-button" id="mute-btn" title="Mute/Unmute microphone">
-            <span class="button-icon">🔊</span>
-            <span class="button-text">Mute</span>
-          </button>
-          <button class="control-button send-button" id="send-btn" disabled title="Send message">
-            <span class="button-icon">📤</span>
-            <span class="button-text">Send</span>
-          </button>
-          <button class="control-button cancel-button" id="cancel-btn" disabled title="Cancel recording">
-            <span class="button-icon">❌</span>
-            <span class="button-text">Cancel</span>
-          </button>
-          <button class="control-button" id="save-call-btn" title="Save current call">
-            <span class="button-icon">💾</span>
-            <span class="button-text">Save Call</span>
-          </button>
-        </div>
-        <div class="status-bar">
-          <div class="status" id="status">Click microphone to start</div>
-          <div id="loader">⏳ Processing...</div>
-        </div>
-      </div>
-
-      <!-- Modal open buttons (positioned absolutely within the main container) -->
-      <div class="modal-buttons" style="position:absolute;top:1rem;right:1rem;z-index:200;">
-        <button id="open-settings" class="control-button" style="background: #4b5563; padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;" title="Settings">⚙️</button>
-        <button id="open-persona" class="control-button" style="background: #4b5563; padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin-left: 0.5rem;" title="Persona">🧑‍💼</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Generic Modal Structure -->
-  <div id="genericModal" class="modal">
-    <div class="modal-content">
-      <button class="modal-close-button" id="closeModalBtn">&times;</button>
-      <h3 id="modalTitle" style="font-size: 1.2rem; font-weight: 600; margin-bottom: 1rem;"></h3>
-      <div id="modalBody"></div>
-      <div class="modal-actions">
-        <button id="modalSaveBtn">Save</button>
-        <button id="modalCancelBtn">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Include Firebase SDKs -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    // Global Firebase variables
-    let app;
-    let db;
-    let auth;
-    let userId = 'anonymous'; // Default to anonymous
-
-    // Access global variables provided by the Canvas environment
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; // Corrected initialization
-
-    // Initialize Firebase and authenticate
-    if (firebaseConfig) {
-        app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
-
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                userId = user.uid;
-                console.log("Firebase authenticated. User ID:", userId);
-            } else {
-                console.log("Firebase not authenticated. Attempting anonymous sign-in.");
-                try {
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                        userId = auth.currentUser.uid;
-                        console.log("Signed in with custom token. User ID:", userId);
-                    } else {
-                        await signInAnonymously(auth);
-                        userId = auth.currentUser.uid;
-                        console.log("Signed in anonymously. User ID:", userId);
-                    }
-                } catch (error) {
-                    console.error("Firebase authentication failed:", error);
-                    // Fallback to a random UUID if anonymous sign-in fails (e.g., no internet)
-                    userId = crypto.randomUUID();
-                    console.warn("Using a random UUID as userId due to authentication failure:", userId);
-                }
-            }
-        });
-    } else {
-        console.warn("Firebase config not found. Call saving will not be available.");
-        userId = crypto.randomUUID(); // Generate a random ID if Firebase isn't configured
-        document.getElementById('save-call-btn').disabled = true;
-    }
-
-    // Make Firebase instances and userId available to the global scope
-    window.firebaseApp = app;
-    window.firebaseDb = db;
-    window.firebaseAuth = auth;
-    window.currentUserId = userId; // This will be updated by onAuthStateChanged
-    window.getUserId = () => userId; // Provide a getter for the current userId
-
-    // Expose Firestore FieldValue for serverTimestamp
-    window.firebase = {
-        firestore: {
-            FieldValue: {
-                serverTimestamp: serverTimestamp
-            }
-        }
-    };
-  </script>
-
-  <!-- Include complains.js BEFORE the main script -->
-  <script src="complaints.js"></script>
-
-  <script>
-    // SpeechService Class (from previous 'both.txt' content)
-    class SpeechService {
-        constructor() {
-            this.synthesis = window.speechSynthesis;
-            this.voices = [];
-            this.isSpeaking = false;
-            this.volume = 0.8; // Default volume, can be updated via setVolume
-            
-            if (this.synthesis) {
-                this.synthesis.onvoiceschanged = () => {
-                    this.voices = this.synthesis.getVoices();
-                    console.log('Voices loaded:', this.voices.length);
-                };
-                this.voices = this.synthesis.getVoices(); // Try to load immediately
-            }
-        }
-
-        setVolume(volume) {
-            this.volume = volume;
-            console.log('SpeechService volume set to:', this.volume);
-        }
-
-        getPreferredVoice(gender = null) {
-            const voices = this.voices.filter(voice => voice.lang.includes('en-US'));
-            let preferredVoice = null;
-
-            if (gender === 'male') {
-                preferredVoice = voices.find(voice => voice.name.includes('Male') || voice.name.includes('David'));
-            } else if (gender === 'female') {
-                preferredVoice = voices.find(voice => voice.name.includes('Zira') || voice.name.includes('Samantha') || voice.name.includes('Female'));
-            }
-            
-            return preferredVoice || voices[0] || null; // Fallback to first English voice, then null
-        }
-
-        async speak(text, gender = null) {
-            return new Promise((resolve, reject) => {
-                if (!this.synthesis || !text) {
-                    console.log('Speech synthesis skipped: not available or no text provided.');
-                    return resolve();
-                }
-
-                this.synthesis.cancel(); // Cancel any ongoing speech
-
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'en-US';
-                utterance.volume = this.volume;
-                
-                const voice = this.getPreferredVoice(gender);
-                if (voice) {
-                    utterance.voice = voice;
-                    console.log('Using voice:', voice.name, 'for gender:', gender);
-                } else {
-                    console.warn('No suitable voice found for gender:', gender, '. Using default if available.');
-                    if (this.voices.length > 0) {
-                        utterance.voice = this.voices.find(v => v.lang.includes('en-US')) || this.voices[0];
-                    } else {
-                        console.error('No speech synthesis voices available. Ensure voices are installed on your OS.');
-                        return resolve(); // Resolve if no voices at all
-                    }
-                }
-
-                utterance.pitch = 1.0;
-                utterance.rate = 0.9;
-
-                this.isSpeaking = true;
-
-                utterance.onend = () => {
-                    console.log('Speech ended');
-                    this.isSpeaking = false;
-                    // Automatically reactivate microphone if not muted
-                    if (!isMuted) {
-                        startRecognition();
-                    }
-                    resolve();
-                };
-
-                utterance.onerror = (err) => {
-                    console.error('Speech error:', err);
-                    this.isSpeaking = false;
-                    // Automatically reactivate microphone if not muted
-                    if (!isMuted) {
-                        startRecognition();
-                    }
-                    reject(err);
-                };
-
-                // Small delay to ensure synthesis is ready
-                setTimeout(() => {
-                    try {
-                        this.synthesis.speak(utterance);
-                        console.log('Speech synthesis started for:', text);
-                        // Mute microphone while AI is speaking
-                        stopRecognition(); 
-                    } catch (e) {
-                        console.error('Error calling speechSynthesis.speak():', e);
-                        this.isSpeaking = false;
-                        reject(e);
-                    }
-                }, 100);
-            });
-        }
-
-        stop() {
-            if (this.synthesis) {
-                this.synthesis.cancel();
-                this.isSpeaking = false;
-                console.log('Speech synthesis stopped.');
-            }
-        }
-    }
-
-    const speechService = new SpeechService(); // Instantiate the SpeechService
-
-    // Use the provided API key directly
-    const API_KEY = "AIzaSyAuGsOgCCzlSBvpcelKWcZXBf1FXFx-zMg"; // Changed to empty string as per user request
-    const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
     
-    const micBtn = document.getElementById('mic-btn');
-    const sendBtn = document.getElementById('send-btn');
-    const cancelBtn = document.getElementById('cancel-btn');
-    const chat = document.getElementById('chat');
-    const status = document.getElementById('status');
-    const loader = document.getElementById('loader');
-    const muteBtn = document.getElementById('mute-btn');
-    const qualityFeedbackPanel = document.getElementById('quality-feedback-panel');
-    const saveCallBtn = document.getElementById('save-call-btn'); // New save button
+    <!-- Report/Survey Modal -->
+    <div id="report-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-40">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h2 class="text-2xl font-bold">Call Report & Survey</h2>
+                <button id="close-report-btn" class="text-gray-500 hover:text-gray-800">&times;</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6">
+                <!-- Report Content -->
+                <div id="report-content">
+                    <h3 class="text-xl font-semibold mb-4">Interaction Analysis</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <h4 class="font-bold text-gray-700 mb-2">Call Summary</h4>
+                            <p id="report-summary" class="text-gray-600 bg-gray-50 p-3 rounded-md"></p>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-700 mb-2">Key Metrics</h4>
+                            <div id="report-metrics" class="space-y-2"></div>
+                        </div>
+                    </div>
+                     <div>
+                        <h4 class="font-bold text-gray-700 mb-2">Quality Score Trend</h4>
+                        <div class="chart-container relative h-64 w-full max-w-2xl mx-auto">
+                            <canvas id="quality-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="mt-6">
+                       <h4 class="font-bold text-gray-700 mb-2">Organizer Bot Assessment</h4>
+                       <div id="organizer-assessment" class="text-gray-600 bg-gray-50 p-4 rounded-md space-y-3"></div>
+                    </div>
+                </div>
+                <!-- Survey Section -->
+                <div id="survey-section" class="hidden mt-8 border-t pt-6">
+                    <h3 class="text-xl font-semibold mb-2">How did we do?</h3>
+                    <p class="text-gray-600 mb-4">Your feedback helps us improve.</p>
+                    <div class="mb-4">
+                        <label for="satisfaction-rating" class="block font-medium text-gray-700 mb-2">Overall Satisfaction (1-10): <span id="rating-value" class="font-bold text-blue-600">5</span></label>
+                        <input type="range" id="satisfaction-rating" min="1" max="10" value="5" class="w-full">
+                    </div>
+                    <div class="mb-4">
+                        <label for="verbatim-feedback" class="block font-medium text-gray-700 mb-2">Additional Comments:</label>
+                        <textarea id="verbatim-feedback" rows="4" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Tell us more about your experience..."></textarea>
+                    </div>
+                    <button id="submit-survey-btn" class="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75">Submit Feedback</button>
+                </div>
+            </div>
+            <div class="p-4 bg-gray-50 border-t flex justify-end">
+                <button id="export-report-btn" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75">Export Report (.txt)</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loader Overlay -->
+    <div id="loader-overlay" class="hidden fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center">
+        <div class="flex flex-col items-center">
+            <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-4 text-lg text-gray-700 font-semibold" id="loader-text">AI is thinking...</p>
+        </div>
+    </div>
 
-    // S4 Progress elements
-    const s1Phase = document.getElementById('s1-phase');
-    const s2Phase = document.getElementById('s2-phase');
-    const s3Phase = document.getElementById('s3-phase');
-    const s4Phase = document.getElementById('s4-phase');
-    const s4Phases = {
-        'S1': s1Phase,
-        'S2': s2Phase,
-        'S3': s3Phase,
-        'S4': s4Phase
-    };
-
-    // Modal elements
-    const genericModal = document.getElementById('genericModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalBody = document.getElementById('modalBody');
-    const closeModalBtn = document.getElementById('closeModalBtn');
-    const modalSaveBtn = document.getElementById('modalSaveBtn'); // Corrected assignment
-    const modalCancelBtn = document.getElementById('modalCancelBtn');
-
-    let recognition;
-    let isRecognizing = false;
-    let currentTranscript = '';
-    let silenceTimer = null;
-    let isMuted = false;
-    let autoSendDelay = 60000; // Default auto-send delay in milliseconds (60 seconds)
-    let lastSpeechEndTime = 0; // To track dead air
-
-    // Chat history for context
-    let chatHistory = []; // This will store alternating user (agent) and model (customer AI) turns
-    let qualityFeedbackHistory = []; // Stores structured quality feedback
-
-    // Initial customer scenario setup - now dynamically set
-    let currentScenario = null; // Stores the full scenario object
-    let currentInitialCustomerScenarioText = ""; // Stores just the initial complaint text
-    let currentS4Phase = 'S1'; // Track current S4 phase
-
-    let customerPersona = "You are a Comcast customer with a billing inquiry. You are slightly frustrated but polite. Respond concisely. Ensure your responses have variance and do not sound robotic.";
-    let qualityAssistantPersona = "You are an S4 Quality Assurance Specialist. Evaluate the agent's last response based on the S4 guidelines provided. Provide a score out of 100 and a brief comment. Focus on Start, Solve, Sell, Summarize, and Foundational Behaviors. Also, identify the current S4 phase (S1, S2, S3, or S4) the conversation is in based on the agent's last response and the overall flow.";
-    let flowManagerPersona = "You are a Call Flow Manager AI. Your role is to guide the agent through the S4 call flow. Based on the conversation history and the current S4 phase, provide a subtle suggestion or prompt to help the agent progress or conclude the call. Your tone should be helpful and encouraging, not critical. Suggest the next logical S4 phase or a concluding action (e.g., 'summarize the call').";
-
-
-    const S4_GUIDELINES_SUMMARY = `
-        S4 Universal Call Flow:
-        - S1: Start (Greeting, Reflect Reason, Relate/Empathize, Take Ownership, Authenticate/Set Agenda)
-        - S2: Solve (Obtain Info/Probe, Resolve Issue, Build Value/Promote)
-        - S3: Sell (Transition to Offer, Present Offer, Overcome Objections, Proactively Close Sale)
-        - S4: Summarize (Summarize Actions, Close Contact, Documentation)
-        Foundational Behaviors: Tone, Confidence, Clarity; Active Listening; Contact Management; Acknowledge/Take Responsibility; Build Rapport/Demonstrate Concern.
-        Scoring: Highly Effective (HE) gives more points than Meets Expectations (ME). Below Expectations (BE) gives 0 points.
-        Critical Failures: Auto-Fail (e.g., Rudeness, Inappropriate Transfer) results in 0 overall. Section Failure (e.g., Authentication failure) results in 0 for that section.
-    `;
-
-    function addMessage(text, sender, senderName = '') {
-      const messages = chat.querySelector('.messages');
-      const div = document.createElement('div');
-      div.className = `message ${sender}`;
-      if (senderName) {
-          const nameSpan = document.createElement('span');
-          nameSpan.className = 'sender-name';
-          nameSpan.textContent = senderName;
-          div.appendChild(nameSpan);
-      }
-      const textNode = document.createTextNode(text);
-      div.appendChild(textNode);
-      messages.appendChild(div);
-      chat.scrollTop = messages.scrollHeight; // Use messages.scrollHeight for more reliable scroll
-    }
-
-    function addQualityFeedback(score, comment, details = {}) {
-      const div = document.createElement('div');
-      div.classList.add('quality-comment');
-      if (score >= 80) {
-        div.classList.add('good');
-      } else if (score < 60) {
-        div.classList.add('bad');
-      }
-      div.innerHTML = `<strong>Score: ${score}/100</strong><br>${comment}`;
-      
-      const infoBtn = document.createElement('button');
-      infoBtn.className = 'quality-info-btn';
-      infoBtn.innerHTML = '💡';
-      infoBtn.title = 'Click for more details';
-      infoBtn.onclick = () => showQualityDetails(details);
-      div.appendChild(infoBtn);
-
-      qualityFeedbackPanel.appendChild(div);
-      qualityFeedbackPanel.scrollTop = qualityFeedbackPanel.scrollHeight;
-      qualityFeedbackHistory.push({ score, comment, details }); // Store structured feedback with details
-    }
-
-    function showQualityDetails(details) {
-        let detailHtml = `<h4>Feedback Details:</h4>`;
-        if (details.s4Phase) {
-            detailHtml += `<p><strong>S4 Phase:</strong> ${details.s4Phase}</p>`;
-        }
-        if (details.confidence !== undefined) {
-            detailHtml += `<p><strong>Speech Confidence:</strong> ${(details.confidence * 100).toFixed(1)}%</p>`;
-        }
-        if (details.deadAirDuration !== undefined) {
-            detailHtml += `<p><strong>Dead Air Duration:</strong> ${details.deadAirDuration.toFixed(1)} seconds</p>`;
-        }
-        if (details.reasoning) {
-            detailHtml += `<p><strong>AI Reasoning:</strong> ${details.reasoning}</p>`;
-        }
-        if (details.suggestions) {
-            detailHtml += `<p><strong>Suggestions:</strong> ${details.suggestions}</p>`;
-        }
-        // Add more details as needed
-        showModal('Quality Feedback Details', detailHtml, null, true); // Pass true to hide save/cancel buttons
-    }
-
-    function updateStatus(message, showLoader = false) {
-      status.textContent = message;
-      loader.style.display = showLoader ? 'inline-block' : 'none';
-      micBtn.disabled = showLoader;
-      sendBtn.disabled = showLoader;
-      cancelBtn.disabled = showLoader;
-      // Mute button should always be active for manual toggle
-      // muteBtn.disabled = showLoader; // Keep mute button active
-    }
-
-    function initRecognition() {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) {
-        addMessage('Speech recognition not supported in this browser. Please use Chrome for best experience.', 'ai');
-        micBtn.disabled = true;
-        return null;
-      }
-
-      const rec = new SR();
-      rec.lang = 'en-US';
-      rec.continuous = false;
-      rec.interimResults = true;
-
-      rec.onstart = () => {
-        isRecognizing = true;
-        micBtn.classList.add('recording');
-        sendBtn.disabled = true;
-        cancelBtn.disabled = false;
-        updateStatus('Listening...');
-        currentTranscript = '';
-        clearTimeout(silenceTimer);
-        lastSpeechEndTime = performance.now(); // Reset dead air timer
-      };
-
-      let lastTranscript = '';
-      rec.onresult = (e) => {
-        clearTimeout(silenceTimer); // Reset silence timer on any speech
-        
-        let interimTranscript = '';
-        let finalTranscript = '';
-        let confidence = 0;
-        
-        for (let i = 0; i < e.results.length; i++) {
-          const transcript = e.results[i][0].transcript;
-          if (e.results[i].isFinal) {
-            finalTranscript = transcript;
-            confidence = e.results[i][0].confidence;
-          } else {
-            interimTranscript = transcript;
-          }
-        }
-
-        const fullTranscript = (finalTranscript || interimTranscript).trim();
-        
-        if (fullTranscript !== lastTranscript) {
-          const newWords = fullTranscript.slice(lastTranscript.length).trim();
-          
-          const command = newWords.toLowerCase();
-          if (command === 'send' || command.endsWith(' send')) {
-            if (currentTranscript.trim()) {
-              sendMessage(currentTranscript.trim(), confidence); // Pass confidence
-            }
-            return;
-          } else if (command === 'delete' || command.endsWith(' delete')) {
-            currentTranscript = '';
-            const messages = chat.querySelector('.messages').lastElementChild;
-            if (messages && messages.classList.contains('user') && !messages.classList.contains('sent')) {
-              messages.remove();
-            }
-            return;
-          }
-
-          currentTranscript = fullTranscript;
-          lastTranscript = fullTranscript;
-          lastSpeechEndTime = performance.now(); // Update last speech time
-
-          sendBtn.disabled = !currentTranscript;
-
-          let messageElement = chat.querySelector('.messages').lastElementChild;
-          if (messageElement && messageElement.classList.contains('user') && !messageElement.classList.contains('sent')) {
-            messageElement.textContent = currentTranscript;
-          } else {
-            messageElement = document.createElement('div');
-            messageElement.className = 'message user';
-            messageElement.innerHTML = `<span class="sender-name">Agent:</span>${currentTranscript}`; // Add sender name
-            chat.querySelector('.messages').appendChild(messageElement);
-          }
-          chat.scrollTop = chat.scrollHeight;
-        }
-
-        // Start new silence timer only if currently recognizing and there's a transcript
-        if (isRecognizing && currentTranscript.trim()) {
-            silenceTimer = setTimeout(() => {
-                console.log('Silence detected - auto-sending message');
-                const deadAirDuration = (performance.now() - lastSpeechEndTime) / 1000;
-                sendMessage(currentTranscript.trim(), confidence, deadAirDuration); // Pass confidence and dead air
-            }, autoSendDelay); // Use autoSendDelay
-        }
-      };
-
-      rec.onerror = (e) => {
-        console.error('Speech recognition error:', e.error);
-        if (e.error === 'network') {
-          updateStatus('Network error. Retrying...', true);
-          setTimeout(() => {
-            if (isRecognizing) startRecognition();
-          }, 1000);
-        } else if (e.error === 'not-allowed') {
-            updateStatus('Microphone access denied. Please enable microphone permissions in your browser settings. Then, refresh the page.', false);
-            micBtn.disabled = true; // Disable mic button if permission is denied
-        }
-        else {
-          updateStatus(`Error: ${e.error}`);
-          stopRecognition();
-        }
-      };
-
-      rec.onend = () => {
-        isRecognizing = false;
-        micBtn.classList.remove('recording');
-        cancelBtn.disabled = true;
-        // Only update status if not already showing a permission error
-        if (status.textContent !== 'Microphone access denied. Please enable microphone permissions in your browser settings. Then, refresh the page.') {
-            updateStatus('Click mic to start');
-        }
-        clearTimeout(silenceTimer); // Ensure timer is cleared on end
-        recognition = null; // Reset recognition object to force re-initialization on next start
-      };
-
-      return rec;
-    }
-
-    function startRecognition() {
-      if (isMuted || speechService.isSpeaking) { // Don't start if muted or AI is speaking
-        console.log('Recognition blocked: muted or AI is speaking.');
-        return;
-      }
-      if (!recognition) {
-        recognition = initRecognition();
-        if (!recognition) return; // If initRecognition failed, stop here
-      }
-
-      try {
-        recognition.start();
-        console.log('Recognition started.');
-      } catch (e) {
-        console.error('Failed to start recognition:', e);
-        updateStatus('Failed to access microphone. Please check permissions.');
-      }
-    }
-
-    function stopRecognition() {
-      if (recognition && isRecognizing) {
-        recognition.stop();
-        console.log('Recognition stopped.');
-        clearTimeout(silenceTimer);
-      }
-    }
-
-    function toggleMute() {
-      isMuted = !isMuted;
-      muteBtn.classList.toggle('muted');
-      muteBtn.querySelector('.button-icon').textContent = isMuted ? '🔇' : '🔊';
-      muteBtn.querySelector('.button-text').textContent = isMuted ? 'Unmute' : 'Mute';
-      
-      if (isMuted) {
-        stopRecognition(); // Stop recognition immediately if muted
-        speechService.stop(); // Stop any ongoing speech
-        console.log('Microphone manually muted.');
-      } else {
-        // If unmuted and AI is not speaking, restart recognition
-        if (!speechService.isSpeaking) {
-          startRecognition();
-          console.log('Microphone manually unmuted.');
-        }
-      }
-    }
-
-    async function sendMessage(text, confidence = 0, deadAirDuration = 0) {
-      if (!text.trim()) return;
-      
-      clearTimeout(silenceTimer);
-      stopRecognition(); // Ensure recognition is stopped before sending
-
-      // Mark the last user message as sent
-      const messages = chat.querySelector('.messages').lastElementChild;
-      if (messages && messages.classList.contains('user') && !messages.classList.contains('sent')) {
-        messages.classList.add('sent');
-      } else {
-        // If message was auto-sent without interim display, add it now
-        addMessage(text, 'user', 'Agent:'); // Add sender name
-        chat.querySelector('.messages').lastElementChild.classList.add('sent');
-      }
-
-      const wasMuted = isMuted;
-      isMuted = true; // Temporarily mute during AI processing
-      muteBtn.classList.add('muted');
-      muteBtn.querySelector('.button-icon').textContent = '🔇';
-      
-      updateStatus('Processing...', true);
-
-      try {
-        // --- Role-Play AI (Customer Response) ---
-        // Construct customer payload with persona and initial complaint as system/user context
-        const customerPrompt = `As the customer, respond to the agent's last message.
-        Customer Persona: ${customerPersona}
-        Initial Complaint: "${currentInitialCustomerScenarioText}"
-        Conversation History: ${JSON.stringify(chatHistory.slice(-6))}
-        Agent's Last Message: "${text}"
-        Your response:`;
-
-        const customerPayload = { contents: [{ role: "user", parts: [{ text: customerPrompt }] }] };
-        console.log("Customer AI Request Payload:", JSON.stringify(customerPayload, null, 2));
-
-        const customerRes = await fetch(GEMINI_API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(customerPayload)
-        });
-        const customerData = await customerRes.json();
-        console.log("Customer AI Raw Response:", JSON.stringify(customerData, null, 2)); // Log raw response
-
-        let customerReply = '(No customer response)';
-        if (customerData.candidates && customerData.candidates.length > 0 &&
-            customerData.candidates[0].content && customerData.candidates[0].content.parts &&
-            customerData.candidates[0].content.parts.length > 0) {
-            customerReply = customerData.candidates[0].content.parts[0].text;
-        } else {
-            console.error("Customer AI did not return a valid response structure or content:", customerData);
-            customerReply = '(Customer AI did not generate a valid response)';
-        }
-        
-        addMessage(customerReply, 'ai', `${currentScenario.customerName}:`); // Add customer name
-        chatHistory.push({ role: "user", parts: [{ text: text }] }); // Add agent's message to history
-        chatHistory.push({ role: "model", parts: [{ text: customerReply }] }); // Add customer's response to history
-
-        if (!wasMuted) { // Speak only if not originally muted
-          await speechService.speak(customerReply, currentScenario.customerGender); // Use speechService instance with gender
-        }
-
-        // --- Quality AI Analysis ---
-        let precedingCustomerMessageText = '';
-        // Find the most recent 'model' message before the current agent's message in chatHistory
-        for (let i = chatHistory.length - 1; i >= 0; i--) {
-            if (chatHistory[i].role === 'model') {
-                precedingCustomerMessageText = chatHistory[i].parts[0].text;
-                break;
-            }
-        }
-        
-        const qualityPrompt = `As an S4 Quality Assurance Specialist, evaluate the agent's response based on the S4 guidelines. Provide a score out of 100, a brief comment, the current S4 phase (S1, S2, S3, or S4) the conversation is in, your reasoning for the score, and suggestions for improvement or better wordings.
-        S4 Guidelines Summary: ${S4_GUIDELINES_SUMMARY}
-        
-        Here is the conversation turn to evaluate:
-        Customer: "${precedingCustomerMessageText || currentInitialCustomerScenarioText}"
-        Agent: "${text}"
-        
-        Focus specifically on whether the agent's response was appropriate given the customer's statement *immediately preceding* the agent's response (or the initial scenario if this is the first agent response).
-        For the 'Start' phase (S1), ensure the agent reflects the reason for contact and shows empathy *if the reason was provided by the customer*. If no specific reason was explicitly provided yet by the customer, evaluate the general greeting and rapport building.
-        Consider the overall flow and adherence to S4 principles.
-        Also consider the agent's speech characteristics:
-        - Speech Confidence: ${(confidence * 100).toFixed(1)}% (Higher is better)
-        - Dead Air Duration: ${deadAirDuration.toFixed(1)} seconds (Lower is better, typically aim for < 1 second within a turn, but longer pauses between turns are natural)
-        
-        Provide your response in JSON format with the following keys: "score" (integer), "comment" (string), "s4Phase" (string, e.g., "S1", "S2", "S3", "S4" - YOU MUST PROVIDE ONE OF THESE), "reasoning" (string), "suggestions" (string).`;
-            
-        const qualityResponseSchema = {
-            type: "OBJECT",
-            properties: {
-                "score": { "type": "INTEGER" },
-                "comment": { "type": "STRING" },
-                "s4Phase": { "type": "STRING", "enum": ["S1", "S2", "S3", "S4"] },
-                "reasoning": { "type": "STRING" },
-                "suggestions": { "type": "STRING" }
-            },
-            "propertyOrdering": ["score", "comment", "s4Phase", "reasoning", "suggestions"]
+    <script type="module">
+        // --- DATA ---
+        const complaints = {
+            internet: [{id: "int_001",type: "Service Interruption",scenario: "Internet service has been intermittent for the past 24 hours, affecting business operations",initialComplaint: { "en-US": "My business internet keeps dropping every hour! We've lost thousands in sales because our payment system is down. This is completely unacceptable for a business account!", "es-ES": "¡El internet de mi negocio se cae cada hora! Hemos perdido miles en ventas porque nuestro sistema de pago no funciona. ¡Esto es completamente inaceptable para una cuenta de negocios!"}, customerName: "Maria Garcia",difficulty: "high"},{id: "int_002",type: "Speed Issues",scenario: "Business customer reporting significantly slower speeds than promised",initialComplaint: { "en-US": "We're only getting 50Mbps when we're paying for 300Mbps. Our video conferences with clients keep freezing!", "es-ES": "Solo estamos recibiendo 50Mbps cuando pagamos por 300Mbps. ¡Nuestras videoconferencias con clientes se congelan!"}, customerName: "John Smith",difficulty: "medium"}],
+            billing: [{id: "bill_001",type: "Incorrect Charge",scenario: "Customer sees an unexpected charge on their monthly bill",initialComplaint: { "en-US": "Why was I charged for 'premium support'? I never asked for that and I want it removed immediately.", "es-ES": "¿Por qué me cobraron por 'soporte premium'? Nunca lo pedí y quiero que lo quiten de inmediato."}, customerName: "David Chen",difficulty: "low"}],
         };
 
-        const qualityPayload = { 
-            contents: [{ role: "user", parts: [{ text: qualityPrompt }] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-                responseSchema: qualityResponseSchema
-            }
-        };
-        console.log("Quality AI Request Payload:", JSON.stringify(qualityPayload, null, 2));
-
-        const qualityRes = await fetch(GEMINI_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(qualityPayload)
-        });
-        const qualityData = await qualityRes.json();
-        console.log("Quality AI Raw Response:", JSON.stringify(qualityData, null, 2)); // Log raw response
-        let qualityFeedback = { score: 0, comment: 'Error: Could not get quality feedback.', s4Phase: 'S1', reasoning: 'No reasoning provided.', suggestions: 'No suggestions provided.' }; // Default to S1
-        let qualityDetails = { confidence, deadAirDuration };
-
-        if (qualityData.candidates && qualityData.candidates.length > 0 &&
-            qualityData.candidates[0].content && qualityData.candidates[0].content.parts &&
-            qualityData.candidates[0].content.parts.length > 0) {
-            try {
-                const jsonText = qualityData.candidates[0].content.parts[0].text;
-                const parsedFeedback = JSON.parse(jsonText);
-                qualityFeedback = { ...qualityFeedback, ...parsedFeedback }; // Merge parsed data
-                qualityDetails = { ...qualityDetails, ...parsedFeedback }; // Add AI's reasoning/suggestions to details
-            } catch (parseError) {
-                console.error('Error parsing quality AI JSON:', parseError);
-                qualityFeedback.comment = `Error parsing quality feedback: ${parseError.message}`;
-                qualityDetails.reasoning = `Error parsing quality feedback: ${parseError.message}`;
-            }
-        } else {
-            console.error('Quality AI returned an unexpected structure:', qualityData);
-            qualityFeedback.comment = 'Error: Unexpected quality AI response structure.';
-            qualityDetails.reasoning = 'Unexpected quality AI response structure.';
-        }
-        
-        addQualityFeedback(qualityFeedback.score, qualityFeedback.comment, qualityDetails);
-        currentS4Phase = qualityFeedback.s4Phase; // Update current S4 phase based on quality AI
-        console.log("Quality AI returned S4 Phase:", currentS4Phase); // Log the phase returned by quality AI
-        updateS4Progress(currentS4Phase);
-
-        // --- Flow Management AI ---
-        const flowManagerPrompt = `As a Call Flow Manager AI, your role is to guide the agent through the S4 call flow.
-        Current S4 Phase: ${currentS4Phase}.
-        Conversation History: ${JSON.stringify(chatHistory.slice(-4))} (last 4 turns for context)
-        Agent's Last Response: "${text}"
-        Customer's Last Response: "${customerReply}"
-
-        Based on the current S4 phase and the recent conversation, provide a subtle suggestion or prompt to help the agent progress or conclude the call. Your tone should be helpful and encouraging, not critical.
-        
-        If the current phase is S1, suggest moving towards problem-solving.
-        If the current phase is S2, suggest looking for sales opportunities or resolving the issue fully.
-        If the current phase is S3, suggest closing the sale or moving to summarization if the sale is not viable.
-        If the current phase is S4, suggest concluding the call.
-        If the conversation seems stuck or repetitive, suggest a way to move forward.
-
-        Provide your response in JSON format with the following keys: "suggestion" (string), "nextS4Phase" (string, e.g., "S1", "S2", "S3", "S4", "Completed"), "interventionNeeded" (boolean, true if a strong prompt is needed).`;
-
-        const flowManagerResponseSchema = {
-            type: "OBJECT",
-            properties: {
-                "suggestion": { "type": "STRING" },
-                "nextS4Phase": { "type": "STRING", "enum": ["S1", "S2", "S3", "S4", "Completed"] },
-                "interventionNeeded": { "type": "BOOLEAN" }
-            },
-            "propertyOrdering": ["suggestion", "nextS4Phase", "interventionNeeded"]
-        };
-
-        const flowManagerPayload = {
-            contents: [{ role: "user", parts: [{ text: flowManagerPrompt }] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-                responseSchema: flowManagerResponseSchema
-            }
-        };
-        console.log("Flow Manager AI Request Payload:", JSON.stringify(flowManagerPayload, null, 2));
-
-        const flowManagerRes = await fetch(GEMINI_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(flowManagerPayload)
-        });
-        const flowManagerData = await flowManagerRes.json();
-        console.log("Flow Manager AI Raw Response:", JSON.stringify(flowManagerData, null, 2)); // Log raw response
-        let flowManagerFeedback = { suggestion: '', nextS4Phase: currentS4Phase, interventionNeeded: false };
-
-        if (flowManagerData.candidates && flowManagerData.candidates.length > 0 &&
-            flowManagerData.candidates[0].content && flowManagerData.candidates[0].content.parts &&
-            flowManagerData.candidates[0].content.parts.length > 0) {
-            try {
-                const jsonText = flowManagerData.candidates[0].content.parts[0].text;
-                flowManagerFeedback = JSON.parse(jsonText);
-            } catch (parseError) {
-                console.error('Error parsing flow manager AI JSON:', parseError);
-            }
-        }
-
-        if (flowManagerFeedback.suggestion) {
-            addMessage(flowManagerFeedback.suggestion, 'ai', 'Flow Manager:');
-        }
-        if (flowManagerFeedback.nextS4Phase && flowManagerFeedback.nextS4Phase !== currentS4Phase) {
-            // Optionally update S4 progress based on Flow Manager's suggestion if it's a clear progression
-            // For now, we'll let Quality AI drive the main S4 progress, but this could be an override.
-        }
+        // --- CORE APPLICATION LOGIC ---
+        class AppController {
+            constructor() {
+                // DOM Binding
+                this.micBtn = document.getElementById('mic-btn');
+                this.messageInput = document.getElementById('message-input');
+                this.chatMessages = document.getElementById('chat-messages');
+                this.statusEl = document.getElementById('status');
+                this.qualityPanel = document.getElementById('quality-feedback-panel');
+                this.loader = document.getElementById('loader-overlay');
+                this.loaderText = document.getElementById('loader-text');
+                this.toneSelect = document.getElementById('tone-select');
+                this.langSelect = document.getElementById('lang-select');
+                this.timeoutInput = document.getElementById('timeout-input');
+                this.newCallBtn = document.getElementById('new-call-btn');
+                this.reportModal = document.getElementById('report-modal');
+                this.closeReportBtn = document.getElementById('close-report-btn');
+                this.exportReportBtn = document.getElementById('export-report-btn');
+                this.surveySection = document.getElementById('survey-section');
+                this.satisfactionRating = document.getElementById('satisfaction-rating');
+                this.ratingValue = document.getElementById('rating-value');
+                this.submitSurveyBtn = document.getElementById('submit-survey-btn');
 
 
-      } catch (e) {
-        console.error('API Error:', e);
-        addMessage('Sorry, I encountered an error processing your message.', 'ai', `${currentScenario.customerName}:`);
-        addQualityFeedback(0, `API Error: ${e.message}`, { confidence, deadAirDuration, reasoning: `API Error: ${e.message}`, suggestions: 'Check network connection or API key.' });
-      } finally {
-        updateStatus('Click mic to start', false);
-        currentTranscript = '';
-        // Restore previous mute state and restart recognition if not muted and AI is not speaking
-        if (!wasMuted && !speechService.isSpeaking) {
-          isMuted = false;
-          muteBtn.classList.remove('muted');
-          muteBtn.querySelector('.button-icon').textContent = '🔊';
-          startRecognition();
-        }
-      }
-    }
-
-    micBtn.addEventListener('click', () => {
-      if (isRecognizing) {
-        stopRecognition();
-      } else {
-        startRecognition();
-      }
-    });
-
-    sendBtn.addEventListener('click', () => {
-      if (currentTranscript.trim()) {
-        const confidence = recognition && recognition.currentResult ? recognition.currentResult[0].confidence : 0;
-        const deadAirDuration = (performance.now() - lastSpeechEndTime) / 1000;
-        sendMessage(currentTranscript.trim(), confidence, deadAirDuration);
-      }
-    });
-
-    cancelBtn.addEventListener('click', () => {
-      currentTranscript = '';
-      const messages = chat.querySelector('.messages').lastElementChild;
-      if (messages && messages.classList.contains('user') && !messages.classList.contains('sent')) {
-        messages.remove();
-      }
-      stopRecognition();
-      updateStatus('Click mic to start', false);
-      sendBtn.disabled = true;
-    });
-
-    muteBtn.addEventListener('click', toggleMute);
-
-    // --- Modal Functions ---
-    function showModal(title, bodyHtml, onSaveCallback, hideActionButtons = false) {
-        modalTitle.textContent = title;
-        modalBody.innerHTML = bodyHtml;
-        genericModal.classList.add('show');
-
-        modalSaveBtn.style.display = hideActionButtons ? 'none' : 'inline-block';
-        modalCancelBtn.style.display = hideActionButtons ? 'none' : 'inline-block';
-
-        modalSaveBtn.onclick = null; 
-        if (onSaveCallback) {
-            modalSaveBtn.onclick = onSaveCallback;
-        }
-    }
-
-    function hideModal() {
-        genericModal.classList.remove('show');
-    }
-
-    closeModalBtn.addEventListener('click', hideModal);
-    modalCancelBtn.addEventListener('click', hideModal);
-    // modalSaveBtn event listener is now set dynamically in showModal
-
-    document.getElementById('open-settings').addEventListener('click', () => {
-        let scenarioOptionsHtml = '';
-        const allScenarios = [];
-        for (const category in window.complaints) {
-            window.complaints[category].forEach(scenario => {
-                allScenarios.push(scenario);
-            });
-        }
-
-        // Create options for the dropdown
-        for (const category in window.complaints) {
-            scenarioOptionsHtml += `<optgroup label="${category.charAt(0).toUpperCase() + category.slice(1)}">`;
-            window.complaints[category].forEach(scenario => {
-                const selected = (scenario === currentScenario) ? 'selected' : ''; // Compare full scenario object
-                scenarioOptionsHtml += `<option value="${scenario.id}" ${selected}>${scenario.scenario}</option>`;
-            });
-            scenarioOptionsHtml += `</optgroup>`;
-        }
-
-        showModal('Settings', `
-            <p>Adjust application settings here.</p>
-            <label style="display: flex; align-items: center; gap: 0.5rem;">
-                API Key:
-                <input type="password" id="settingApiKey" value="${API_KEY}" placeholder="Enter your API Key">
-                <a href="https://aistudio.google.com/app/apikey" target="_blank" title="Manage your Google AI Studio API Keys" style="color: var(--accent-color); text-decoration: none;">🔗</a>
-            </label>
-            <label>
-                Enable Quality Scoring:
-                <input type="checkbox" id="settingEnableQuality" checked>
-            </label>
-            <label>
-                Speech Volume:
-                <input type="range" id="settingSpeechVolume" min="0" max="1" step="0.1" value="${speechService.volume}">
-                <span id="speechVolumeValue">${speechService.volume}</span>
-            </label>
-            <label>
-                Auto-Send Delay (seconds):
-                <input type="number" id="settingAutoSendDelay" min="1" max="10" step="0.5" value="${autoSendDelay / 1000}">
-            </label>
-            <label>
-                Call Scenario:
-                <select id="settingCallScenario">
-                    ${scenarioOptionsHtml}
-                </select>
-                <p style="font-size: 0.8em; color: var(--text-secondary); margin-top: 0.5rem;">Note: Voice quality depends on your browser's installed voices.</p>
-            </label>
-        `, () => {
-            // Save settings logic
-            speechService.setVolume(parseFloat(document.getElementById('settingSpeechVolume').value));
-            autoSendDelay = parseFloat(document.getElementById('settingAutoSendDelay').value) * 1000; // Convert to milliseconds
-            
-            const selectedScenarioId = document.getElementById('settingCallScenario').value;
-            // Find the selected scenario object
-            let selectedScenario = null;
-            for (const category in window.complaints) {
-                selectedScenario = window.complaints[category].find(s => s.id === selectedScenarioId);
-                if (selectedScenario) break;
-            }
-            currentScenario = selectedScenario;
-            currentInitialCustomerScenarioText = currentScenario ? currentScenario.initialComplaint : "Hello, how can I help you today?";
-
-
-            console.log('Settings saved:', { speechVolume: speechService.volume, autoSendDelay, currentScenario });
-            hideModal();
-            startNewRolePlay(); // Restart role play with new scenario
-        });
-
-        // Update volume display dynamically
-        const speechVolumeSlider = document.getElementById('settingSpeechVolume');
-        const speechVolumeValueSpan = document.getElementById('speechVolumeValue');
-        speechVolumeSlider.oninput = () => {
-            speechVolumeValueSpan.textContent = speechVolumeSlider.value;
-        };
-    });
-
-    document.getElementById('open-persona').addEventListener('click', () => {
-        showModal('Persona Selection', `
-            <p>Choose or customize AI personas for role-play.</p>
-            <label>
-                Customer Persona:
-                <textarea id="personaCustomer" rows="4" placeholder="Describe the customer persona">${customerPersona}</textarea>
-            </label>
-            <label>
-                Quality Assistant Persona:
-                <textarea id="personaQuality" rows="4" placeholder="Describe the quality assistant persona">${qualityAssistantPersona}</textarea>
-            </label>
-            <label>
-                Flow Manager Persona:
-                <textarea id="personaFlowManager" rows="4" placeholder="Describe the flow manager persona">${flowManagerPersona}</textarea>
-            </label>
-        `, () => {
-            // Save persona logic
-            customerPersona = document.getElementById('personaCustomer').value;
-            qualityAssistantPersona = document.getElementById('personaQuality').value;
-            flowManagerPersona = document.getElementById('personaFlowManager').value;
-            console.log('Personas saved:', { customerPersona, qualityAssistantPersona, flowManagerPersona });
-            hideModal();
-        });
-    });
-
-    // --- Save Call Button Logic ---
-    saveCallBtn.addEventListener('click', () => {
-        if (!window.firebaseDb || !window.getUserId()) {
-            showModal('Save Error', '<p>Firebase is not initialized or user not authenticated. Cannot save call. Please ensure you are connected to the internet and refresh the page.</p>', null);
-            return;
-        }
-
-        showModal('Save Call', `
-            <label>
-                Call Name:
-                <input type="text" id="callNameInput" placeholder="e.g., Billing Inquiry Practice 1">
-            </label>
-        `, async () => {
-            const callName = document.getElementById('callNameInput').value.trim();
-            if (!callName) {
-                showModal('Save Error', '<p>Please enter a name for the call.</p>', null);
-                return;
-            }
-
-            try {
-                const db = window.firebaseDb;
-                const userId = window.getUserId();
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-                // Path for private user data
-                const callsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/calls`);
-
-                const callData = {
-                    callName: callName,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp(), // Use server timestamp
-                    chatHistory: chatHistory,
-                    qualityFeedback: qualityFeedbackHistory,
-                    scenario: currentScenario ? currentScenario.id : 'random_scenario', // Save scenario ID
-                    userId: userId
+                // State
+                this.state = {
+                    isRecognizing: false,
+                    currentTranscript: '',
+                    silenceTimer: null,
+                    turnCount: 0,
+                    callInProgress: false,
+                    currentScenario: {},
+                    chatHistory: [],
+                    qualityScores: [],
+                    fullConversationForReport: [],
                 };
+                
+                // Services / Bots
+                this.speechService = new SpeechService(
+                    () => this.state.isRecognizing,
+                    (isRecognizing) => this.setRecognitionState(isRecognizing),
+                    (transcript) => this.handleRecognitionResult(transcript),
+                    (error) => this.handleRecognitionError(error)
+                );
+                
+                this.geminiAPI = new GeminiAPIService();
 
-                await addDoc(callsCollectionRef, callData);
-                console.log("Call saved successfully!");
-                showModal('Success', `<p>Call "${callName}" saved successfully!</p>`, null);
-            } catch (e) {
-                console.error("Error saving call:", e);
-                showModal('Error', `<p>Failed to save call: ${e.message}</p>`, null);
+                this.bindEventListeners();
+                this.startNewCall();
             }
-        });
-    });
-    // --- End Save Call Button Logic ---
 
-    // --- S4 Progress Indicator Logic ---
-    function updateS4Progress(phase) {
-        // Reset all phases first
-        for (const key in s4Phases) {
-            s4Phases[key].classList.remove('active', 'completed');
-        }
-
-        let foundActive = false;
-        for (const key of ['S1', 'S2', 'S3', 'S4']) { // Ensure correct order
-            if (key === phase) {
-                s4Phases[key].classList.add('active');
-                foundActive = true;
-            } else if (!foundActive) {
-                // This condition means 'key' is a phase *before* the current 'phase'
-                s4Phases[key].classList.add('completed');
-            }
-            // If foundActive is true, and key is not 'phase', then it's a future phase, so leave it default (grey)
-        }
-    }
-
-    // Function to start a new role-play session
-    function startNewRolePlay() {
-        chatHistory = []; // Clear history
-        qualityFeedbackHistory = []; // Clear quality feedback history
-        chat.querySelector('.messages').innerHTML = ''; // Clear chat display
-        qualityFeedbackPanel.innerHTML = '<div class="quality-comment">Feedback will appear here after each of your responses.</div>';
-        updateStatus('Start your call by speaking into the microphone.');
-        currentS4Phase = 'S1'; // Reset S4 phase
-        updateS4Progress(currentS4Phase); // Reset S4 progress to S1
-
-        // Add a prominent initial message about microphone permissions
-        addMessage("Welcome! To use the simulator, please ensure your browser has microphone access enabled. If you encounter issues, check your browser's site settings for microphone permissions and refresh the page.", 'ai', 'System:');
-
-        // Flatten all scenarios into a single array for random selection
-        const allScenarios = [];
-        for (const category in window.complaints) {
-            if (window.complaints && typeof window.complaints === 'object' && window.complaints[category]) {
-                window.complaints[category].forEach(scenario => {
-                    allScenarios.push(scenario);
+            bindEventListeners() {
+                this.micBtn.addEventListener('click', () => this.speechService.toggleRecognition(this.state.currentLanguage));
+                this.messageInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage(this.messageInput.value);
+                    }
+                });
+                this.newCallBtn.addEventListener('click', () => this.startNewCall());
+                this.closeReportBtn.addEventListener('click', () => this.reportModal.classList.add('hidden'));
+                this.exportReportBtn.addEventListener('click', () => this.exportReport());
+                this.satisfactionRating.addEventListener('input', (e) => {
+                    this.ratingValue.textContent = e.target.value;
                 });
             }
-        }
-        
-        // Randomly select a new scenario, different from the previous one if possible
-        let newScenario = null;
-        if (allScenarios.length > 1) {
-            do {
-                const randomIndex = Math.floor(Math.random() * allScenarios.length);
-                newScenario = allScenarios[randomIndex];
-            } while (newScenario === currentScenario); // Keep shuffling if it's the same as last time
-        } else if (allScenarios.length === 1) {
-            newScenario = allScenarios[0];
-        } else {
-            newScenario = { id: 'default', scenario: 'Default Scenario', initialComplaint: "Hello, how can I help you today?", customerName: "Customer", customerGender: "neutral" };
-        }
-        currentScenario = newScenario;
-        currentInitialCustomerScenarioText = currentScenario.initialComplaint;
 
-        // The customer does NOT start the call. The agent (user) starts.
-        // The customer's initial complaint will be the *context* for the agent's first response.
-        // We will add a system message to set the scene.
-        addMessage(`Scenario: ${currentScenario.scenario}. The customer is ${currentScenario.customerName} and their initial complaint is: "${currentInitialCustomerScenarioText}". Please begin the call.`, 'ai', 'System:');
-        
-        // No initial customer message pushed to chatHistory here. The first user message will be the agent's greeting.
-        // The first customer message will be generated by the AI after the agent's first turn.
-    }
+            startNewCall() {
+                // Reset state
+                this.state.turnCount = 0;
+                this.state.callInProgress = true;
+                this.state.chatHistory = [];
+                this.state.qualityScores = [];
+                this.state.fullConversationForReport = [];
+                this.messageInput.value = '';
+                this.chatMessages.innerHTML = '';
+                this.qualityPanel.innerHTML = '<div class="text-gray-500 text-center pt-8">Waiting for first interaction...</div>';
+                this.reportModal.classList.add('hidden');
+                this.surveySection.classList.add('hidden');
+                this.messageInput.disabled = false;
+                this.micBtn.disabled = false;
+                
+                // Get settings
+                const lang = this.langSelect.value;
+                this.state.currentLanguage = lang;
+                
+                // Select a random scenario
+                const allScenarios = Object.values(complaints).flat();
+                this.state.currentScenario = allScenarios[Math.floor(Math.random() * allScenarios.length)];
+                
+                const scenarioText = this.state.currentScenario.initialComplaint[lang];
+                this.state.customerPersona = this.getPersonaPrompt(this.state.currentScenario.customerName, scenarioText);
 
-    // Initial setup when the page loads
-    document.addEventListener('DOMContentLoaded', () => {
-        // Ensure Firebase is initialized before proceeding with app logic that depends on it
-        const checkFirebaseReady = setInterval(() => {
-            if (window.firebaseDb && window.getUserId() !== 'anonymous') {
-                clearInterval(checkFirebaseReady);
-                console.log("Firebase is ready. User ID:", window.getUserId());
-                startNewRolePlay();
-            } else if (window.firebaseDb && window.getUserId() === 'anonymous' && typeof __initial_auth_token === 'undefined') {
-                clearInterval(checkFirebaseReady);
-                console.log("Firebase ready with anonymous user ID:", window.getUserId());
-                startNewRolePlay();
-            } else if (!window.firebaseConfig) {
-                clearInterval(checkFirebaseReady);
-                console.warn("Firebase config not found. Proceeding without call saving.");
-                startNewRolePlay();
+                // Initial system message
+                const systemMessage = lang === 'es-ES' ?
+                    `Nueva llamada entrante de ${this.state.currentScenario.customerName}. Motivo: ${this.state.currentScenario.scenario}. Comience la llamada.` :
+                    `New call incoming from ${this.state.currentScenario.customerName}. Reason: ${this.state.currentScenario.scenario}. Please begin the call.`;
+
+                this.addMessage(systemMessage, 'system');
             }
-        }, 100);
-    });
-  </script>
+
+            getPersonaPrompt(name, complaint) {
+                 const lang = this.langSelect.value;
+                 if(lang === 'es-ES') {
+                    return `Eres un cliente de habla hispana llamado ${name}. Tu problema es: "${complaint}". Estás frustrado pero intentas ser educado. Mantén tus respuestas relativamente cortas. NO resuelvas el problema demasiado rápido. Si el agente te da una buena solución, acéptala.`;
+                 }
+                 return `You are a customer named ${name}. Your issue is: "${complaint}". You are frustrated but trying to be polite. Keep your responses relatively short. DO NOT solve the issue too quickly. If the agent gives a good resolution, accept it.`;
+            }
+
+            setRecognitionState(isRecognizing) {
+                this.state.isRecognizing = isRecognizing;
+                this.micBtn.classList.toggle('bg-red-500', isRecognizing);
+                this.micBtn.classList.toggle('text-white', isRecognizing);
+                this.statusEl.textContent = isRecognizing ? (this.state.currentLanguage === 'es-ES' ? 'Escuchando...' : 'Listening...') : '';
+            }
+
+            handleRecognitionResult(transcript) {
+                this.messageInput.value = transcript;
+                this.state.currentTranscript = transcript;
+                clearTimeout(this.state.silenceTimer);
+
+                // Voice commands
+                const command = transcript.toLowerCase().trim();
+                if (command.endsWith('send') || command.endsWith('enviar')) {
+                    const messageToSend = transcript.replace(/send|enviar/gi, '').trim();
+                    this.sendMessage(messageToSend);
+                    return;
+                }
+                if (command.endsWith('delete') || command.endsWith('borrar')) {
+                    this.messageInput.value = '';
+                    this.state.currentTranscript = '';
+                    this.statusEl.textContent = this.state.currentLanguage === 'es-ES' ? 'Borrado. Escuchando de nuevo...' : 'Deleted. Listening again...';
+                    // Don't stop recognition, allow user to try again
+                    return;
+                }
+                
+                // Auto-send timer
+                const timeoutSeconds = parseInt(this.timeoutInput.value, 10) * 1000;
+                this.state.silenceTimer = setTimeout(() => {
+                    this.sendMessage(this.state.currentTranscript);
+                }, timeoutSeconds);
+            }
+
+            handleRecognitionError(error) {
+                this.statusEl.textContent = `Error: ${error}`;
+            }
+
+            async sendMessage(text) {
+                if (!text || !this.state.callInProgress) return;
+
+                this.speechService.stopRecognition();
+                clearTimeout(this.state.silenceTimer);
+                this.messageInput.value = '';
+                this.state.currentTranscript = '';
+
+                this.addMessage(text, 'user');
+                this.state.chatHistory.push({ role: 'user', parts: [{ text }] });
+                this.state.fullConversationForReport.push({ speaker: 'Agent', text });
+
+
+                this.state.turnCount++;
+                if (this.state.turnCount > 0) {
+                   if (this.qualityPanel.innerHTML.includes("Waiting for first interaction")) {
+                       this.qualityPanel.innerHTML = '';
+                   }
+                }
+                
+                this.showLoader(true, 'Customer is responding...');
+
+                // Get Customer Response
+                const customerResponse = await this.geminiAPI.generateContent(this.buildPrompt(this.state.customerPersona));
+                this.addMessage(customerResponse, 'ai');
+                this.state.chatHistory.push({ role: 'model', parts: [{ text: customerResponse }] });
+                this.state.fullConversationForReport.push({ speaker: 'Customer', text: customerResponse });
+
+                // Get Quality Coach Feedback
+                this.showLoader(true, 'Quality Coach is analyzing...');
+                const qualityFeedback = await this.getQualityFeedback(text, customerResponse);
+                this.displayQualityFeedback(qualityFeedback);
+                this.state.qualityScores.push(qualityFeedback.score);
+
+                this.showLoader(false);
+
+                // Check for call end condition
+                if (this.state.turnCount >= 6 + Math.floor(Math.random() * 5)) { // 6-10 turns
+                    this.endCall();
+                }
+            }
+
+            async getQualityFeedback(agentMessage, customerMessage) {
+                const lang = this.langSelect.value;
+                const prompt = lang === 'es-ES' ? 
+                    `Como especialista en control de calidad, evalúa la respuesta del agente. Cliente: "${customerMessage}". Agente: "${agentMessage}". Proporciona una puntuación de 0 a 100 y un comentario breve y constructivo sobre la empatía, la claridad y la resolución de problemas. Devuelve solo un objeto JSON con las claves "score" (número) y "comment" (cadena).` :
+                    `As a Quality Assurance Specialist, evaluate the agent's response. Customer: "${customerMessage}". Agent: "${agentMessage}". Provide a score from 0-100 and a brief, constructive comment on empathy, clarity, and problem-solving. Return only a JSON object with keys "score" (number) and "comment" (string).`;
+                
+                try {
+                    const responseText = await this.geminiAPI.generateContent(prompt);
+                    const cleanedText = responseText.replace(/```json|```/g, '').trim();
+                    return JSON.parse(cleanedText);
+                } catch (e) {
+                    console.error("Failed to parse quality feedback:", e);
+                    return { score: 0, comment: "Error getting quality feedback." };
+                }
+            }
+
+            addMessage(text, sender, name) {
+                const div = document.createElement('div');
+                div.className = `w-full flex ${sender === 'user' || sender === 'system' ? 'justify-end' : 'justify-start'}`;
+                
+                const messageBubble = document.createElement('div');
+                let bubbleClass;
+                let senderName = '';
+
+                switch (sender) {
+                    case 'user':
+                        bubbleClass = 'bg-blue-500 text-white';
+                        senderName = 'Agent';
+                        break;
+                    case 'ai':
+                        bubbleClass = 'bg-gray-200 text-gray-800';
+                        senderName = this.state.currentScenario.customerName || 'Customer';
+                        break;
+                    case 'system':
+                        bubbleClass = 'bg-yellow-100 text-yellow-800 border border-yellow-300';
+                        senderName = 'System';
+                        break;
+                }
+
+                messageBubble.className = `max-w-md lg:max-w-lg p-3 rounded-lg shadow ${bubbleClass}`;
+                messageBubble.innerHTML = `<div class="font-bold text-sm mb-1">${senderName}</div><div>${text}</div>`;
+                
+                div.appendChild(messageBubble);
+                this.chatMessages.appendChild(div);
+                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+            }
+
+            displayQualityFeedback({ score, comment }) {
+                const div = document.createElement('div');
+                div.className = 'p-3 rounded-lg bg-gray-50 border border-gray-200 shadow-sm';
+
+                let scoreColorClass;
+                if (score >= 85) scoreColorClass = 'text-green-600 bg-green-100';
+                else if (score >= 60) scoreColorClass = 'text-yellow-600 bg-yellow-100';
+                else scoreColorClass = 'text-red-600 bg-red-100';
+
+                const qualityScoreFormula = `The Quality Score is a holistic measure based on:
+- Empathy & Rapport (30%)
+- Problem Identification & Solving (40%)
+- Clarity & Confidence (20%)
+- Adherence to Procedure (10%)
+
+Scores are penalized for lack of context, repetitive phrases, and failure to de-escalate.`;
+
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-gray-700">Turn ${this.state.turnCount} Analysis</span>
+                        <div class="flex items-center space-x-2">
+                             <span class="text-xl">💡</span>
+                             <div class="has-tooltip relative">
+                                <span class="text-xl cursor-pointer">ℹ️</span>
+                                <div class="tooltip absolute bottom-full mb-2 w-64 bg-gray-800 text-white text-xs rounded p-2 z-10 -translate-x-1/2 left-1/2">
+                                    ${qualityScoreFormula.replace(/\n/g, '<br>')}
+                                </div>
+                             </div>
+                             <span class="font-bold text-lg px-2 py-0.5 rounded ${scoreColorClass}">${score}</span>
+                        </div>
+                    </div>
+                    <p class="text-gray-600">${comment}</p>
+                `;
+                this.qualityPanel.appendChild(div);
+                this.qualityPanel.scrollTop = this.qualityPanel.scrollHeight;
+            }
+            
+            buildPrompt(persona) {
+                const tone = this.toneSelect.value;
+                const lang = this.langSelect.value;
+                const interactionLimit = `This is turn number ${this.state.turnCount}. The call should not exceed 10 turns.`;
+                let closingInstruction = '';
+                if(this.state.turnCount >= 6) {
+                    closingInstruction = lang === 'es-ES' ? 
+                        'Empieza a buscar una manera de concluir la conversación.' :
+                        'Start looking for a way to wrap up the conversation.';
+                }
+
+                const basePrompt = `${persona} Your tone should be ${tone}. Respond in the language: ${lang}. ${interactionLimit} ${closingInstruction}`;
+                
+                // Construct a temporary history for the prompt
+                const historyForPrompt = [...this.state.chatHistory];
+                historyForPrompt.unshift({
+                    role: 'user',
+                    parts: [{ text: basePrompt }]
+                });
+
+                return historyForPrompt;
+            }
+            
+            showLoader(show, text = 'AI is thinking...') {
+                this.loaderText.textContent = text;
+                this.loader.classList.toggle('hidden', !show);
+            }
+
+            async endCall() {
+                this.state.callInProgress = false;
+                this.speechService.stopRecognition();
+                this.messageInput.disabled = true;
+                this.micBtn.disabled = true;
+                this.statusEl.textContent = this.state.currentLanguage === 'es-ES' ? 'Llamada finalizada.' : 'Call Ended.';
+                this.addMessage(this.statusEl.textContent, 'system');
+                
+                this.showLoader(true, 'Organizer Bot is generating the final report...');
+                await this.generateAndShowReport();
+                this.showLoader(false);
+            }
+
+            async generateAndShowReport() {
+                const reportPrompt = this.state.currentLanguage === 'es-ES' ?
+                     `Como un Bot Organizador de IA, analiza la siguiente transcripción de la llamada y las puntuaciones de calidad.
+                      Transcripción: ${JSON.stringify(this.state.fullConversationForReport)}
+                      Puntuaciones de calidad por turno: ${this.state.qualityScores.join(', ')}
+                      Crea un informe con: 1. Un resumen conciso de la llamada. 2. Una evaluación del rendimiento del agente (fortalezas/debilidades). 3. Recomendaciones de autocuración para el sistema (por ejemplo, "Sugerir modificar el guion de quejas para manejar mejor X").
+                      Devuelve solo un objeto JSON con las claves "summary", "assessment" y "recommendations".` :
+                     `As an AI Organizer Bot, analyze the following call transcript and quality scores.
+                      Transcript: ${JSON.stringify(this.state.fullConversationForReport)}
+                      Quality Scores per turn: ${this.state.qualityScores.join(', ')}
+                      Create a report with: 1. A concise summary of the call. 2. An assessment of the agent's performance (strengths/weaknesses). 3. Self-healing recommendations for the system (e.g., "Suggest modifying complaint script to better handle X.").
+                      Return only a JSON object with keys "summary", "assessment", and "recommendations".`;
+
+                try {
+                    const responseText = await this.geminiAPI.generateContent(reportPrompt);
+                    const cleanedText = responseText.replace(/```json|```/g, '').trim();
+                    const reportData = JSON.parse(cleanedText);
+
+                    // Populate Report
+                    document.getElementById('report-summary').textContent = reportData.summary;
+                    
+                    const assessmentHtml = `
+                        <p class="mb-2"><strong class="font-semibold">Assessment:</strong> ${reportData.assessment}</p>
+                        <p><strong class="font-semibold">Self-Healing Suggestion:</strong> <span class="bg-blue-100 text-blue-800 p-1 rounded">${reportData.recommendations}</span></p>
+                    `;
+                    document.getElementById('organizer-assessment').innerHTML = assessmentHtml;
+                    
+                    const finalScore = this.state.qualityScores.length > 0 ? (this.state.qualityScores.reduce((a, b) => a + b, 0) / this.state.qualityScores.length).toFixed(0) : 'N/A';
+                    document.getElementById('report-metrics').innerHTML = `
+                        <p><strong>Final Average Score:</strong> ${finalScore}</p>
+                        <p><strong>Total Turns:</strong> ${this.state.turnCount}</p>
+                        <p><strong>Difficulty:</strong> ${this.state.currentScenario.difficulty}</p>
+                    `;
+
+                    this.renderQualityChart();
+
+                } catch (e) {
+                     console.error("Failed to generate report:", e);
+                     document.getElementById('report-summary').textContent = "Error generating report.";
+                }
+
+                // Decide if survey should be shown (e.g., 30% chance)
+                if (Math.random() < 0.3) {
+                    this.surveySection.classList.remove('hidden');
+                }
+                
+                this.reportModal.classList.remove('hidden');
+            }
+
+            renderQualityChart() {
+                const ctx = document.getElementById('quality-chart').getContext('2d');
+                if(window.qualityChartInstance) {
+                    window.qualityChartInstance.destroy();
+                }
+                window.qualityChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: this.state.qualityScores.map((_, i) => `Turn ${i + 1}`),
+                        datasets: [{
+                            label: 'Quality Score',
+                            data: this.state.qualityScores,
+                            backgroundColor: this.state.qualityScores.map(score => {
+                                if (score >= 85) return 'rgba(16, 185, 129, 0.7)';
+                                if (score >= 60) return 'rgba(245, 158, 11, 0.7)';
+                                return 'rgba(239, 68, 68, 0.7)';
+                            }),
+                            borderColor: this.state.qualityScores.map(score => {
+                                if (score >= 85) return 'rgba(16, 185, 129, 1)';
+                                if (score >= 60) return 'rgba(245, 158, 11, 1)';
+                                return 'rgba(239, 68, 68, 1)';
+                            }),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true, max: 100 } },
+                        plugins: { legend: { display: false }, title: { display: true, text: 'Quality Score per Interaction Turn'} }
+                    }
+                });
+            }
+            
+            exportReport() {
+                 const summary = document.getElementById('report-summary').textContent;
+                 const assessment = document.getElementById('organizer-assessment').innerText;
+                 const metrics = document.getElementById('report-metrics').innerText;
+                 const fullTranscript = this.state.fullConversationForReport.map(msg => `${msg.speaker}: ${msg.text}`).join('\n');
+
+                 const reportText = `
+CALL SIMULATION REPORT
+======================
+Date: ${new Date().toLocaleString()}
+Scenario: ${this.state.currentScenario.scenario}
+Customer: ${this.state.currentScenario.customerName}
+----------------------
+
+METRICS
+-------
+${metrics}
+
+ORGANIZER ASSESSMENT
+--------------------
+${assessment}
+
+CALL SUMMARY
+------------
+${summary}
+
+FULL TRANSCRIPT
+---------------
+${fullTranscript}
+                 `;
+
+                 const blob = new Blob([reportText.trim()], { type: 'text/plain' });
+                 const link = document.createElement('a');
+                 link.href = URL.createObjectURL(blob);
+                 link.download = `CallReport_${new Date().toISOString()}.txt`;
+                 link.click();
+                 URL.revokeObjectURL(link.href);
+            }
+        }
+
+        // --- SERVICES ---
+        class SpeechService {
+            constructor(getIsRecognizing, setIsRecognizing, onResult, onError) {
+                this.getIsRecognizing = getIsRecognizing;
+                this.setIsRecognizing = setIsRecognizing;
+                this.onResult = onResult;
+                this.onError = onError;
+
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    console.error("Speech Recognition not supported.");
+                    return;
+                }
+                this.recognition = new SpeechRecognition();
+                this.recognition.interimResults = true;
+                this.recognition.continuous = true;
+
+                this.recognition.onstart = () => this.setIsRecognizing(true);
+                this.recognition.onend = () => this.setIsRecognizing(false);
+                this.recognition.onerror = (event) => this.onError(event.error);
+                this.recognition.onresult = (event) => {
+                    let finalTranscript = '';
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) {
+                            finalTranscript += event.results[i][0].transcript;
+                        }
+                    }
+                    if (finalTranscript) {
+                        this.onResult(finalTranscript);
+                    }
+                };
+            }
+
+            toggleRecognition(lang) {
+                if (this.getIsRecognizing()) {
+                    this.recognition.stop();
+                } else {
+                    this.recognition.lang = lang;
+                    this.recognition.start();
+                }
+            }
+
+            stopRecognition() {
+                if(this.getIsRecognizing()) {
+                    this.recognition.stop();
+                }
+            }
+        }
+
+        class GeminiAPIService {
+            constructor() {
+                this.API_KEY = ""; // Use environment variable or secure method in a real app
+                this.API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.API_KEY}`;
+            }
+
+            async generateContent(promptOrHistory) {
+                const payload = {
+                    contents: Array.isArray(promptOrHistory) ? promptOrHistory : [{ role: 'user', parts: [{ text: promptOrHistory }] }]
+                };
+                
+                try {
+                    const response = await fetch(this.API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) {
+                        throw new Error(`API Error: ${response.statusText}`);
+                    }
+                    const data = await response.json();
+                    
+                    if (data.candidates && data.candidates.length > 0) {
+                        return data.candidates[0].content.parts[0].text;
+                    }
+                    return "(No AI response received)";
+
+                } catch (error) {
+                    console.error("Gemini API Error:", error);
+                    return `(Error: Could not get AI response - ${error.message})`;
+                }
+            }
+        }
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            new AppController();
+        });
+    </script>
 </body>
 </html>
