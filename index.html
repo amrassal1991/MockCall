@@ -463,9 +463,22 @@
 
             async getQualityFeedback(agentMessage, customerMessage) {
                 const lang = this.langSelect.value;
+                // Updated prompt to reflect S4 guidelines and request examples
                 const prompt = lang === 'es-ES' ? 
-                    `Como especialista en control de calidad, evalúa la respuesta del agente. Cliente: "${customerMessage}". Agente: "${agentMessage}". Proporciona una puntuación de 0 a 100 y un comentario breve y constructivo sobre la empatía, la claridad y la resolución de problemas. Devuelve solo un objeto JSON con las claves "score" (número) y "comment" (cadena).` :
-                    `As a Quality Assurance Specialist, evaluate the agent's response. Customer: "${customerMessage}". Agent: "${agentMessage}". Provide a score from 0-100 and a brief, constructive comment on empathy, clarity, and problem-solving. Return only a JSON object with keys "score" (number) and "comment" (string).`;
+                    `Como especialista en control de calidad de S4, evalúa la respuesta del agente basándote en las directrices de S4 (Inicio, Resolver, Vender, Resumir) y los comportamientos fundamentales (Tono, Escucha activa, Gestión de contacto, Reconocimiento/Responsabilidad, Construcción de relación/Preocupación).
+                    Conversación:
+                    Cliente: "${customerMessage}"
+                    Agente: "${agentMessage}"
+                    
+                    Proporciona una puntuación de 0 a 100 y un comentario breve y constructivo. Incluye un ejemplo de "Palabras que funcionan" si la respuesta del agente podría mejorarse, o un "Ejemplo de excelencia" si fue excepcional, basado en las directrices de S4.
+                    Devuelve solo un objeto JSON con las claves "score" (número), "comment" (cadena) y "example" (cadena, opcional).` :
+                    `As an S4 Quality Assurance Specialist, evaluate the agent's response based on the S4 guidelines (Start, Solve, Sell, Summarize) and foundational behaviors (Tone, Active Listening, Contact Management, Acknowledge/Responsibility, Build Rapport/Concern).
+                    Conversation:
+                    Customer: "${customerMessage}"
+                    Agent: "${agentMessage}"
+                    
+                    Provide a score from 0-100 and a brief, constructive comment. Include a "Words that Work" example if the agent's response could be improved, or an "Example of Excellence" if it was outstanding, based on S4 guidelines.
+                    Return only a JSON object with keys "score" (number), "comment" (string) and "example" (string, optional).`;
                 
                 try {
                     const responseText = await this.geminiAPI.generateContent(prompt);
@@ -508,7 +521,7 @@
                 this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
             }
 
-            displayQualityFeedback({ score, comment }) {
+            displayQualityFeedback({ score, comment, example }) { // Added 'example' parameter
                 const div = document.createElement('div');
                 div.className = 'p-3 rounded-lg bg-gray-50 border border-gray-200 shadow-sm';
 
@@ -517,13 +530,21 @@
                 else if (score >= 60) scoreColorClass = 'text-yellow-600 bg-yellow-100';
                 else scoreColorClass = 'text-red-600 bg-red-100';
 
-                const qualityScoreFormula = `The Quality Score is a holistic measure based on:
-- Empathy & Rapport (30%)
-- Problem Identification & Solving (40%)
-- Clarity & Confidence (20%)
-- Adherence to Procedure (10%)
+                // Updated quality score formula and added S4 guidelines
+                const qualityScoreFormula = `The Quality Score is based on S4 Guidelines:
+- S1: Start (Greeting, Empathy, Ownership, Agenda)
+- S2: Solve (Obtain Info, Resolve Issue, Build Value)
+- S3: Sell (Transition, Present Offer, Overcome Objections, Close Sale)
+- S4: Summarize (Summarize Actions, Close Contact, Documentation)
+- Foundational Behaviors (Tone, Active Listening, Contact Management, Acknowledge/Responsibility, Build Rapport/Concern).
 
-Scores are penalized for lack of context, repetitive phrases, and failure to de-escalate.`;
+Scores are penalized for critical failures (e.g., Rudeness, Account Actions).
+Higher scores reflect "Highly Effective" behaviors, often with specific examples provided.`;
+
+                let exampleHtml = '';
+                if (example) {
+                    exampleHtml = `<p class="text-sm text-gray-700 mt-2"><strong>Example:</strong> <em>"${example}"</em></p>`;
+                }
 
                 div.innerHTML = `
                     <div class="flex justify-between items-center mb-1">
@@ -540,6 +561,7 @@ Scores are penalized for lack of context, repetitive phrases, and failure to de-
                         </div>
                     </div>
                     <p class="text-gray-600">${comment}</p>
+                    ${exampleHtml}
                 `;
                 this.qualityPanel.appendChild(div);
                 this.qualityPanel.scrollTop = this.qualityPanel.scrollHeight;
@@ -587,16 +609,17 @@ Scores are penalized for lack of context, repetitive phrases, and failure to de-
             }
 
             async generateAndShowReport() {
-                const reportPrompt = this.state.currentLanguage === 'es-ES' ?
-                     `Como un Bot Organizador de IA, analiza la siguiente transcripción de la llamada y las puntuaciones de calidad.
+                const lang = this.langSelect.value;
+                const reportPrompt = lang === 'es-ES' ?
+                     `Como un Bot Organizador de IA, analiza la siguiente transcripción de la llamada y las puntuaciones de calidad. El informe debe ser preciso, bien estructurado y útil para mejorar la curva de aprendizaje del agente, basándose en las directrices de calidad de S4.
                       Transcripción: ${JSON.stringify(this.state.fullConversationForReport)}
                       Puntuaciones de calidad por turno: ${this.state.qualityScores.join(', ')}
-                      Crea un informe con: 1. Un resumen conciso de la llamada. 2. Una evaluación del rendimiento del agente (fortalezas/debilidades). 3. Recomendaciones de autocuración para el sistema (por ejemplo, "Sugerir modificar el guion de quejas para manejar mejor X").
+                      Crea un informe con: 1. Un resumen conciso de la llamada. 2. Una evaluación detallada del rendimiento del agente según las directrices de S4 (fortalezas/debilidades), incluyendo cómo se aplica el esquema de puntuación. 3. Recomendaciones de autocuración para el sistema (por ejemplo, "Sugerir modificar el guion de quejas para manejar mejor X").
                       Devuelve solo un objeto JSON con las claves "summary", "assessment" y "recommendations".` :
-                     `As an AI Organizer Bot, analyze the following call transcript and quality scores.
+                     `As an AI Organizer Bot, analyze the following call transcript and quality scores. The report should be accurate, well-structured, and resourceful for improving the agent's learning curve, based on S4 quality guidelines.
                       Transcript: ${JSON.stringify(this.state.fullConversationForReport)}
                       Quality Scores per turn: ${this.state.qualityScores.join(', ')}
-                      Create a report with: 1. A concise summary of the call. 2. An assessment of the agent's performance (fortalezas/debilidades). 3. Self-healing recommendations for the system (e.g., "Suggest modifying complaint script to better handle X.").
+                      Create a report with: 1. A concise summary of the call. 2. A detailed assessment of the agent's performance based on S4 guidelines (strengths/weaknesses), including how the marking scheme applies. 3. Self-healing recommendations for the system (e.g., "Suggest modifying complaint script to better handle X.").
                       Return only a JSON object with keys "summary", "assessment", and "recommendations".`;
 
                 try {
