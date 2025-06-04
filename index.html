@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Call Simulator</title>
+  <title>Call Simulator Comcast SMB wave. 24</title>
   <style>
     :root {
       --bg-main: #0a0a0a;
@@ -555,7 +555,7 @@
     const initialCustomerScenario = "Hello, I'm calling about my internet service.";
 
     let customerPersona = "You are a Comcast customer with a billing inquiry. You are slightly frustrated but polite. Respond concisely.";
-    let qualityAssistantPersona = "You are an S4 Quality Assurance Specialist. Evaluate the agent's last response based on the S4 guidelines provided. Provide a score out of 100 for the response and a brief comment. Focus on Start, Solve, Sell, Summarize, and Foundational Behaviors.";
+    let qualityAssistantPersona = "You are an S4 Quality Assurance Specialist. Evaluate the agent's last response based on the S4 guidelines provided. Provide a score out of 100 and a brief comment. Focus on Start, Solve, Sell, Summarize, and Foundational Behaviors.";
 
     const S4_GUIDELINES_SUMMARY = `
         S4 Universal Call Flow:
@@ -692,7 +692,7 @@
             if (isRecognizing) startRecognition();
           }, 1000);
         } else if (e.error === 'not-allowed') {
-            updateStatus('Microphone access denied. Please enable microphone permissions in your browser settings.', false);
+            updateStatus('Microphone access denied. Please enable microphone permissions in your browser settings. Then, refresh the page.', false);
             micBtn.disabled = true; // Disable mic button if permission is denied
         }
         else {
@@ -706,18 +706,21 @@
         micBtn.classList.remove('recording');
         cancelBtn.disabled = true;
         // Only update status if not already showing a permission error
-        if (status.textContent !== 'Microphone access denied. Please enable microphone permissions in your browser settings.') {
+        if (status.textContent !== 'Microphone access denied. Please enable microphone permissions in your browser settings. Then, refresh the page.') {
             updateStatus('Click mic to start');
         }
         clearTimeout(silenceTimer); // Ensure timer is cleared on end
+        recognition = null; // Reset recognition object to force re-initialization on next start
       };
 
       return rec;
     }
 
     function startRecognition() {
-      if (!recognition) recognition = initRecognition();
-      if (!recognition) return; // If initRecognition failed, stop here
+      if (!recognition) {
+        recognition = initRecognition();
+        if (!recognition) return; // If initRecognition failed, stop here
+      }
 
       try {
         recognition.start();
@@ -880,7 +883,10 @@
     }
 
     function speak(text) {
-      if (!window.speechSynthesis || isMuted) return;
+      if (!window.speechSynthesis || isMuted) {
+        console.log('Speech synthesis skipped: muted or not supported.');
+        return;
+      }
       
       window.speechSynthesis.cancel();
       
@@ -902,8 +908,8 @@
           utterance.voice = voices[0];
           console.warn('Preferred voice not found, using default voice:', voices[0].name);
       } else {
-          console.error('No speech synthesis voices available.');
-          updateStatus('Speech synthesis voices not available. Check browser settings.', false);
+          console.error('No speech synthesis voices available. Ensure voices are installed on your OS.'); // More specific error
+          updateStatus('Speech synthesis voices not available. Check browser/OS settings.', false);
           return;
       }
       
@@ -926,6 +932,7 @@
         micBtn.disabled = true;
         sendBtn.disabled = true;
         cancelBtn.disabled = true;
+        console.log('Speech synthesis started.'); // Confirm speech started
       };
       
       utterance.onend = () => {
@@ -940,6 +947,7 @@
           }
           updateStatus('Click mic to start', false);
         }, 500); // Short delay before re-enabling mic
+        console.log('Speech synthesis ended.'); // Confirm speech ended
       };
       
       utterance.onerror = (e) => {
@@ -1074,12 +1082,15 @@
         chat.querySelector('.messages').innerHTML = ''; // Clear chat display
         qualityFeedbackPanel.innerHTML = '<div class="quality-comment">Feedback will appear here after each of your responses.</div>';
         updateStatus('Click microphone to start');
-        addMessage(initialCustomerScenario, 'ai'); // Display initial customer message
+        
+        // Add a prominent initial message about microphone permissions
+        addMessage("Welcome! To use the simulator, please ensure your browser has microphone access enabled. If you encounter issues, check your browser's site settings for microphone permissions and refresh the page.", 'ai');
+
+        // Add the initial customer scenario as TEXT only.
+        addMessage(initialCustomerScenario, 'ai'); 
         chatHistory.push({ role: "model", parts: [{ text: initialCustomerScenario }] }); // Add to history as model's first turn
-        // Attempt to speak the initial message after a slight delay to ensure voices are loaded
-        setTimeout(() => {
-            speak(initialCustomerScenario);
-        }, 1000); 
+        
+        // The first spoken message from the AI will occur after the user's first input.
     }
 
     // Initial setup when the page loads
