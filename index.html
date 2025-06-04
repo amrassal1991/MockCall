@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Call Simulator</title>
+  <style>
+    :root {
+      --bg-main: #0a0a0a;
+      --bg-container: #1a1a1a;
+      --bg-message-ai: #2d2d2d;
+      --bg-message-user: #1a6cd0;
+      --text-main: #ffffff;
+      --text-secondary: #a0a0a0;
+      --accent-color: #1a6cd0;
+      --success-color: #10b981;
+      --error-color: #ef4444;
+      --quality-bg: #2d2d2d; /* Darker background for quality panel */
+      --quality-border: #444;
+      --quality-score-good: #10b981; /* Green for good score */
+      --quality-score-bad: #ef4444; /* Red for bad score */
+      --quality-score-neutral: #f59e0b; /* Amber for neutral/needs improvement */
+      color-scheme: dark;  /* Tells browser this is a dark theme */
+    }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-main);
+      color: var(--text-main);
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .main-layout {
+      flex: 1;
+      max-width: 1200px; /* Increased max-width to accommodate two columns */
+      margin: 1rem auto;
+      width: 100%;
+      display: flex;
+      gap: 1rem; /* Gap between chat and quality panel */
+      height: calc(100vh - 2rem);
+    }
+
+    .container {
+      flex: 2; /* Chat container takes more space */
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: var(--bg-container);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .quality-panel {
+      flex: 1; /* Quality panel takes less space */
+      background: var(--quality-bg);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+      border-radius: 12px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--quality-border);
+    }
+
+    .quality-panel h2 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .quality-feedback-content {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 0.5rem; /* For scrollbar space */
+    }
+
+    .quality-comment {
+      background: rgba(255,255,255,0.05);
+      border-left: 4px solid var(--quality-score-neutral);
+      padding: 0.8rem;
+      border-radius: 8px;
+      margin-bottom: 0.8rem;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .quality-comment.good { border-color: var(--quality-score-good); }
+    .quality-comment.bad { border-color: var(--quality-score-bad); }
+
+    .quality-comment strong {
+      color: var(--text-main);
+    }
+
+    .quality-feedback-content::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .quality-feedback-content::-webkit-scrollbar-track {
+      background: var(--quality-bg);
+    }
+
+    .quality-feedback-content::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.2);
+      border-radius: 3px;
+    }
+
+    .quality-feedback-content::-webkit-scrollbar-thumb:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    @media (max-width: 768px) {
+      .main-layout {
+        flex-direction: column;
+        height: auto;
+        margin: 0.5rem;
+      }
+      .container, .quality-panel {
+        flex: none;
+        width: auto;
+        margin-bottom: 1rem;
+      }
+      .quality-panel {
+        height: 300px; /* Give it a fixed height on mobile */
+      }
+    }
+
+    .header {
+      background: var(--accent-color);
+      color: var(--text-main);
+      padding: 1rem;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-top-left-radius: 12px;
+      border-top-right-radius: 12px;
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      background: var(--bg-container);
+    }
+
+    .messages {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      padding-bottom: 1rem;
+    }
+
+    .message {
+      max-width: 70%;
+      padding: 0.8rem 1rem;
+      border-radius: 1rem;
+      position: relative;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      animation: fadeIn 0.3s ease-in;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      transition: all 0.2s ease-out;
+    }
+
+    /* Typing indicator animation */
+    .message.user:not(.sent)::after {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 4px;
+      background: rgba(255,255,255,0.7);
+      border-radius: 50%;
+      margin-left: 4px;
+      vertical-align: middle;
+      animation: blink 1s infinite;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--bg-message-user);
+      color: white;
+      border-bottom-right-radius: 0.4rem;
+      margin-left: 2rem;
+    }
+
+    .message.ai {
+      align-self: flex-start;
+      background: var(--bg-message-ai);
+      color: var(--text-main);
+      border-bottom-left-radius: 0.4rem;
+      margin-right: 2rem;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Custom scrollbar for Webkit browsers */
+    .chat-container::-webkit-scrollbar, .quality-feedback-content::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .chat-container::-webkit-scrollbar-track, .quality-feedback-content::-webkit-scrollbar-track {
+      background: var(--bg-container);
+    }
+
+    .chat-container::-webkit-scrollbar-thumb, .quality-feedback-content::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+    }
+
+    .chat-container::-webkit-scrollbar-thumb:hover, .quality-feedback-content::-webkit-scrollbar-thumb:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    .controls {
+      padding: 1rem;
+      background: var(--bg-container);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+    }
+
+    .control-button {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.8rem 1.2rem;
+      border: none;
+      border-radius: 24px;
+      background: var(--accent-color);
+      color: white;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.2s;
+      font-weight: 500;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      backdrop-filter: blur(4px);
+    }
+
+    .control-button:hover:not(:disabled) {
+      background: #006cbd;
+    }
+
+    .control-button:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    .control-button .button-icon {
+      font-size: 1.2rem;
+    }
+
+    .record-button {
+      background: #10b981;
+    }
+
+    .record-button:hover:not(:disabled) {
+      background: #059669;
+      transform: translateY(-1px);
+    }
+
+    .record-button.recording {
+      background: #ef4444;
+      animation: pulse 1.5s infinite;
+    }
+
+    .mute-button {
+      background: #6b7280;
+    }
+
+    .mute-button:hover:not(:disabled) {
+      background: #4b5563;
+    }
+
+    .mute-button.muted {
+      background: #ef4444;
+    }
+
+    .cancel-button {
+      background: #ef4444;
+    }
+
+    .cancel-button:hover:not(:disabled) {
+      background: #dc2626;
+      transform: translateY(-1px);
+    }
+
+    .control-button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .status-bar {
+      background: rgba(0,0,0,0.03);
+      padding: 0.5rem;
+      border-radius: 12px;
+      margin-top: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .mic-button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .status {
+      flex: 1;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    #loader {
+      display: none;
+      color: var(--accent-color);
+      font-size: 0.9rem;
+    }
+
+    /* Modal styles */
+    .modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    .modal.show {
+      opacity: 1;
+      visibility: visible;
+    }
+    .modal-content {
+      background: #23272f;
+      color: #fff;
+      border-radius: 10px;
+      padding: 2rem;
+      min-width: 320px;
+      max-width: 90vw;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      position: relative; /* For close button positioning */
+    }
+    .modal-content label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      font-size: 1rem;
+    }
+    .modal-content input[type="text"],
+    .modal-content input[type="number"],
+    .modal-content select,
+    .modal-content textarea {
+      margin-top: 0.2rem;
+      border-radius: 6px;
+      border: 1px solid #444;
+      background: #181c22;
+      color: #fff;
+      padding: 0.4rem 0.6rem;
+      font-size: 1rem;
+    }
+    .modal-content textarea {
+      resize: vertical;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+    }
+    .modal-actions button {
+      background: var(--accent-color);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .modal-actions button:hover {
+      background: #0e4a8a;
+    }
+    .modal-close-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .modal-close-button:hover {
+      color: var(--text-main);
+    }
+  </style>
+</head>
+<body>
+  <div class="main-layout">
+    <div class="container">
+      <div class="header">
+        <h1>Call Simulator 🎧</h1>
+      </div>
+      <div class="chat-container" id="chat">
+        <div class="messages">
+          <!-- Initial message will be added by startNewRolePlay() -->
+        </div>
+      </div>
+      <div class="controls">
+        <div class="button-group">
+          <button class="control-button record-button" id="mic-btn" title="Start/Stop recording">
+            <span class="button-icon">🎤</span>
+            <span class="button-text">Hold to Talk</span>
+          </button>
+          <button class="control-button mute-button" id="mute-btn" title="Mute/Unmute microphone">
+            <span class="button-icon">🔊</span>
+            <span class="button-text">Mute</span>
+          </button>
+          <button class="control-button send-button" id="send-btn" disabled title="Send message">
+            <span class="button-icon">📤</span>
+            <span class="button-text">Send</span>
+          </button>
+          <button class="control-button cancel-button" id="cancel-btn" disabled title="Cancel recording">
+            <span class="button-icon">❌</span>
+            <span class="button-text">Cancel</span>
+          </button>
+        </div>
+        <div class="status-bar">
+          <div class="status" id="status">Click microphone to start</div>
+          <div id="loader">⏳ Processing...</div>
+        </div>
+      </div>
+
+      <!-- Modal open buttons (positioned absolutely within the main container) -->
+      <div class="modal-buttons" style="position:absolute;top:1rem;right:1rem;z-index:200;">
+        <button id="open-settings" class="control-button" style="background: #4b5563; padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;" title="Settings">⚙️</button>
+        <button id="open-persona" class="control-button" style="background: #4b5563; padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin-left: 0.5rem;" title="Persona">🧑‍💼</button>
+      </div>
+    </div>
+
+    <div class="quality-panel">
+      <h2>Quality Feedback</h2>
+      <div class="quality-feedback-content" id="quality-feedback-panel">
+        <div class="quality-comment">Feedback will appear here after each of your responses.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generic Modal Structure -->
+  <div id="genericModal" class="modal">
+    <div class="modal-content">
+      <button class="modal-close-button" id="closeModalBtn">&times;</button>
+      <h3 id="modalTitle" style="font-size: 1.2rem; font-weight: 600; margin-bottom: 1rem;"></h3>
+      <div id="modalBody"></div>
+      <div class="modal-actions">
+        <button id="modalSaveBtn">Save</button>
+        <button id="modalCancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize voices as soon as possible
+    if (window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices(); // Cache the voices
+      };
+    }
+
+    // Use the provided API key directly
+    const API_KEY = "AIzaSyAuGsOgCCzlSBvpcelKWcZXBf1FXFx-zMg";
+    const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+    
+    const micBtn = document.getElementById('mic-btn');
+    const sendBtn = document.getElementById('send-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const chat = document.getElementById('chat');
+    const status = document.getElementById('status');
+    const loader = document.getElementById('loader');
+    const muteBtn = document.getElementById('mute-btn');
+    const qualityFeedbackPanel = document.getElementById('quality-feedback-panel');
+
+    // Modal elements
+    const genericModal = document.getElementById('genericModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const modalSaveBtn = document.getElementById('modalSaveBtn');
+    const modalCancelBtn = document.getElementById('modalCancelBtn');
+
+    let recognition;
+    let isRecognizing = false;
+    let currentTranscript = '';
+    let silenceTimer = null;
+    let isMuted = false;
+    let isSpeaking = false;
+    let speechVolume = 0.8; // Default speech volume
+    let autoSendDelay = 2000; // Default auto-send delay in milliseconds (2 seconds)
+
+    // Chat history for context
+    let chatHistory = []; // This will store alternating user (agent) and model (customer AI) turns
+
+    // Initial customer scenario setup
+    const initialCustomerScenario = "Hello, I'm calling about my internet service.";
+
+    let customerPersona = "You are a Comcast customer with a billing inquiry. You are slightly frustrated but polite. Respond concisely.";
+    let qualityAssistantPersona = "You are an S4 Quality Assurance Specialist. Evaluate the agent's last response based on the S4 guidelines provided. Provide a score out of 100 for the response and a brief comment. Focus on Start, Solve, Sell, Summarize, and Foundational Behaviors.";
+
+    const S4_GUIDELINES_SUMMARY = `
+        S4 Universal Call Flow:
+        - S1: Start (Greeting, Reflect Reason, Relate/Empathize, Take Ownership, Authenticate/Set Agenda)
+        - S2: Solve (Obtain Info/Probe, Resolve Issue, Build Value/Promote)
+        - S3: Sell (Transition to Offer, Present Offer, Overcome Objections, Proactively Close Sale)
+        - S4: Summarize (Summarize Actions, Close Contact, Documentation)
+        Foundational Behaviors: Tone, Confidence, Clarity; Active Listening; Contact Management; Acknowledge/Take Responsibility; Build Rapport/Demonstrate Concern.
+        Scoring: Highly Effective (HE) gives more points than Meets Expectations (ME). Below Expectations (BE) gives 0 points.
+        Critical Failures: Auto-Fail (e.g., Rudeness, Inappropriate Transfer) results in 0 overall. Section Failure (e.g., Authentication failure) results in 0 for that section.
+    `;
+
+    function addMessage(text, sender) {
+      const messages = chat.querySelector('.messages');
+      const div = document.createElement('div');
+      div.className = `message ${sender}`;
+      div.textContent = text;
+      messages.appendChild(div);
+      chat.scrollTop = messages.scrollHeight; // Use messages.scrollHeight for more reliable scroll
+    }
+
+    function addQualityFeedback(score, comment) {
+      const div = document.createElement('div');
+      div.classList.add('quality-comment');
+      if (score >= 80) {
+        div.classList.add('good');
+      } else if (score < 60) {
+        div.classList.add('bad');
+      }
+      div.innerHTML = `<strong>Score: ${score}/100</strong><br>${comment}`;
+      qualityFeedbackPanel.appendChild(div);
+      qualityFeedbackPanel.scrollTop = qualityFeedbackPanel.scrollHeight;
+    }
+
+    function updateStatus(message, showLoader = false) {
+      status.textContent = message;
+      loader.style.display = showLoader ? 'inline-block' : 'none';
+      micBtn.disabled = showLoader;
+      sendBtn.disabled = showLoader;
+      cancelBtn.disabled = showLoader;
+      muteBtn.disabled = showLoader;
+    }
+
+    function initRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) {
+        addMessage('Speech recognition not supported in this browser. Please use Chrome for best experience.', 'ai');
+        micBtn.disabled = true;
+        return null;
+      }
+
+      const rec = new SR();
+      rec.lang = 'en-US';
+      rec.continuous = false;
+      rec.interimResults = true;
+
+      rec.onstart = () => {
+        isRecognizing = true;
+        micBtn.classList.add('recording');
+        sendBtn.disabled = true;
+        cancelBtn.disabled = false;
+        updateStatus('Listening...');
+        currentTranscript = '';
+        clearTimeout(silenceTimer);
+      };
+
+      let lastTranscript = '';
+      rec.onresult = (e) => {
+        clearTimeout(silenceTimer); // Reset silence timer on any speech
+        
+        let interimTranscript = '';
+        let finalTranscript = '';
+        
+        for (let i = 0; i < e.results.length; i++) {
+          const transcript = e.results[i][0].transcript;
+          if (e.results[i].isFinal) {
+            finalTranscript = transcript;
+          } else {
+            interimTranscript = transcript;
+          }
+        }
+
+        const fullTranscript = (finalTranscript || interimTranscript).trim();
+        
+        if (fullTranscript !== lastTranscript) {
+          const newWords = fullTranscript.slice(lastTranscript.length).trim();
+          
+          const command = newWords.toLowerCase();
+          if (command === 'send' || command.endsWith(' send')) {
+            if (currentTranscript.trim()) {
+              sendMessage(currentTranscript.trim());
+            }
+            return;
+          } else if (command === 'delete' || command.endsWith(' delete')) {
+            currentTranscript = '';
+            const messages = chat.querySelector('.messages').lastElementChild;
+            if (messages && messages.classList.contains('user') && !messages.classList.contains('sent')) {
+              messages.remove();
+            }
+            return;
+          }
+
+          currentTranscript = fullTranscript;
+          lastTranscript = fullTranscript;
+
+          sendBtn.disabled = !currentTranscript;
+
+          let messageElement = chat.querySelector('.messages').lastElementChild;
+          if (messageElement && messageElement.classList.contains('user') && !messageElement.classList.contains('sent')) {
+            messageElement.textContent = currentTranscript;
+          } else {
+            messageElement = document.createElement('div');
+            messageElement.className = 'message user';
+            messageElement.textContent = currentTranscript;
+            chat.querySelector('.messages').appendChild(messageElement);
+          }
+          chat.scrollTop = chat.scrollHeight;
+        }
+
+        // Start new silence timer only if currently recognizing and there's a transcript
+        if (isRecognizing && currentTranscript.trim()) {
+            silenceTimer = setTimeout(() => {
+                console.log('Silence detected - auto-sending message');
+                sendMessage(currentTranscript.trim());
+            }, autoSendDelay); // Use autoSendDelay
+        }
+      };
+
+      rec.onerror = (e) => {
+        console.error('Speech recognition error:', e.error);
+        if (e.error === 'network') {
+          updateStatus('Network error. Retrying...', true);
+          setTimeout(() => {
+            if (isRecognizing) startRecognition();
+          }, 1000);
+        } else if (e.error === 'not-allowed') {
+            updateStatus('Microphone access denied. Please enable microphone permissions in your browser settings.', false);
+            micBtn.disabled = true; // Disable mic button if permission is denied
+        }
+        else {
+          updateStatus(`Error: ${e.error}`);
+          stopRecognition();
+        }
+      };
+
+      rec.onend = () => {
+        isRecognizing = false;
+        micBtn.classList.remove('recording');
+        cancelBtn.disabled = true;
+        // Only update status if not already showing a permission error
+        if (status.textContent !== 'Microphone access denied. Please enable microphone permissions in your browser settings.') {
+            updateStatus('Click mic to start');
+        }
+        clearTimeout(silenceTimer); // Ensure timer is cleared on end
+      };
+
+      return rec;
+    }
+
+    function startRecognition() {
+      if (!recognition) recognition = initRecognition();
+      if (!recognition) return; // If initRecognition failed, stop here
+
+      try {
+        recognition.start();
+      } catch (e) {
+        console.error('Failed to start recognition:', e);
+        updateStatus('Failed to access microphone. Please check permissions.');
+      }
+    }
+
+    function stopRecognition() {
+      if (recognition && isRecognizing) {
+        recognition.stop();
+        clearTimeout(silenceTimer);
+      }
+    }
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      muteBtn.classList.toggle('muted');
+      muteBtn.querySelector('.button-icon').textContent = isMuted ? '🔇' : '🔊';
+      muteBtn.querySelector('.button-text').textContent = isMuted ? 'Unmute' : 'Mute';
+      
+      if (isMuted) {
+        if (isRecognizing) stopRecognition();
+        if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+      } else {
+        // If not speaking, restart recognition after unmute
+        if (!isSpeaking) {
+          startRecognition();
+        }
+      }
+    }
+
+    async function sendMessage(text) {
+      if (!text.trim()) return;
+      
+      clearTimeout(silenceTimer);
+      stopRecognition(); // Ensure recognition is stopped before sending
+
+      // Mark the last user message as sent
+      const messages = chat.querySelector('.messages').lastElementChild;
+      if (messages && messages.classList.contains('user') && !messages.classList.contains('sent')) {
+        messages.classList.add('sent');
+      } else {
+        // If message was auto-sent without interim display, add it now
+        addMessage(text, 'user');
+        chat.querySelector('.messages').lastElementChild.classList.add('sent');
+      }
+
+      const wasMuted = isMuted;
+      isMuted = true; // Temporarily mute during AI processing
+      muteBtn.classList.add('muted');
+      muteBtn.querySelector('.button-icon').textContent = '🔇';
+      
+      updateStatus('Processing...', true);
+
+      try {
+        // --- Role-Play AI (Customer Response) ---
+        // The customer AI's prompt should be based on the current chatHistory
+        const customerPayload = { contents: chatHistory.concat([{ role: "user", parts: [{ text: text }] }]) }; // Add current agent message for customer AI context
+        const customerRes = await fetch(GEMINI_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(customerPayload)
+        });
+        const customerData = await customerRes.json();
+        const customerReply = customerData.candidates?.[0]?.content?.parts?.[0]?.text || '(No customer response)';
+        
+        addMessage(customerReply, 'ai');
+        chatHistory.push({ role: "user", parts: [{ text: text }] }); // Add agent's message to history
+        chatHistory.push({ role: "model", parts: [{ text: customerReply }] }); // Add customer's response to history
+
+        if (!wasMuted) { // Speak only if not originally muted
+          speak(customerReply);
+        }
+
+        // --- Quality AI Analysis ---
+        // For quality analysis, we need the agent's *last* message and the *customer's message immediately preceding it*.
+        // The agent's message is `text`.
+        // The customer's immediately preceding message is `chatHistory[chatHistory.length - 2]` (if history is long enough)
+        // Or `initialCustomerScenario` if this is the first agent message.
+
+        let precedingCustomerMessageText = '';
+        // Find the most recent 'model' message before the current agent's message in chatHistory
+        for (let i = chatHistory.length - 1; i >= 0; i--) {
+            if (chatHistory[i].role === 'model') {
+                precedingCustomerMessageText = chatHistory[i].parts[0].text;
+                break;
+            }
+        }
+        
+        const qualityPrompt = `As an S4 Quality Assurance Specialist, evaluate the agent's response based on the S4 guidelines. Provide a score out of 100 and a brief comment.
+        S4 Guidelines Summary: ${S4_GUIDELINES_SUMMARY}
+        
+        Here is the conversation turn to evaluate:
+        Customer: "${precedingCustomerMessageText}"
+        Agent: "${text}"
+        
+        Focus specifically on whether the agent's response was appropriate given the customer's statement *immediately preceding* the agent's response.
+        For the 'Start' phase (S1), ensure the agent reflects the reason for contact and shows empathy *if the reason was provided by the customer*. If no specific reason was explicitly provided yet by the customer, evaluate the general greeting and rapport building.
+        Consider the overall flow and adherence to S4 principles.`;
+            
+        const qualityResponseSchema = {
+            type: "OBJECT",
+            properties: {
+                "score": { "type": "INTEGER" },
+                "comment": { "type": "STRING" }
+            },
+            "propertyOrdering": ["score", "comment"]
+        };
+
+        const qualityPayload = { 
+            contents: [{ role: "user", parts: [{ text: qualityPrompt }] }],
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: qualityResponseSchema
+            }
+        };
+
+        const qualityRes = await fetch(GEMINI_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(qualityPayload)
+        });
+        const qualityData = await qualityRes.json();
+        let qualityFeedback = { score: 0, comment: 'Error: Could not get quality feedback.' };
+
+        if (qualityData.candidates && qualityData.candidates.length > 0 &&
+            qualityData.candidates[0].content && qualityData.candidates[0].content.parts &&
+            qualityData.candidates[0].content.parts.length > 0) {
+            try {
+                const jsonText = qualityData.candidates[0].content.parts[0].text;
+                qualityFeedback = JSON.parse(jsonText);
+            } catch (parseError) {
+                console.error('Error parsing quality AI JSON:', parseError);
+                qualityFeedback.comment = `Error parsing quality feedback: ${parseError.message}`;
+            }
+        } else {
+            console.error('Quality AI returned an unexpected structure:', qualityData);
+            qualityFeedback.comment = 'Error: Unexpected quality AI response structure.';
+        }
+        
+        addQualityFeedback(qualityFeedback.score, qualityFeedback.comment);
+
+      } catch (e) {
+        console.error('API Error:', e);
+        addMessage('Sorry, I encountered an error processing your message.', 'ai');
+        addQualityFeedback(0, `API Error: ${e.message}`);
+      } finally {
+        updateStatus('Click mic to start', false);
+        currentTranscript = '';
+        // Restore previous mute state and restart recognition if not muted and AI is not speaking
+        if (!wasMuted && !isSpeaking) {
+          isMuted = false;
+          muteBtn.classList.remove('muted');
+          muteBtn.querySelector('.button-icon').textContent = '🔊';
+          startRecognition();
+        }
+      }
+    }
+
+    function speak(text) {
+      if (!window.speechSynthesis || isMuted) return;
+      
+      window.speechSynthesis.cancel();
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      utterance.volume = speechVolume; // Use the configurable volume
+
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice = voices.find(voice => 
+        voice.name.includes('Zira') || 
+        voice.name.includes('Samantha') ||
+        (voice.name.includes('Female') && voice.lang.includes('en-US'))
+      );
+      
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
+      } else if (voices.length > 0) {
+          // Fallback to first available voice if preferred not found
+          utterance.voice = voices[0];
+          console.warn('Preferred voice not found, using default voice:', voices[0].name);
+      } else {
+          console.error('No speech synthesis voices available.');
+          updateStatus('Speech synthesis voices not available. Check browser settings.', false);
+          return;
+      }
+      
+      utterance.pitch = 1.0;
+      utterance.rate = 0.9;
+      
+      if (recognition) {
+        recognition.abort();
+      }
+      isRecognizing = false;
+      isSpeaking = true;
+      
+      updateStatus('AI is speaking...', true); // Show loader for speaking
+      console.log('Attempting to speak:', text); // Log the text being spoken
+      
+      utterance.onstart = () => {
+        isSpeaking = true;
+        micBtn.classList.remove('recording');
+        // Disable controls while AI speaks
+        micBtn.disabled = true;
+        sendBtn.disabled = true;
+        cancelBtn.disabled = true;
+      };
+      
+      utterance.onend = () => {
+        isSpeaking = false;
+        // Re-enable controls after AI finishes speaking, respecting mute state
+        setTimeout(() => {
+          if (!isMuted) {
+            micBtn.disabled = false;
+            sendBtn.disabled = !currentTranscript; // Enable send if there's text
+            cancelBtn.disabled = !isRecognizing;
+            startRecognition(); // Restart recognition automatically
+          }
+          updateStatus('Click mic to start', false);
+        }, 500); // Short delay before re-enabling mic
+      };
+      
+      utterance.onerror = (e) => {
+        console.error('Speech synthesis error:', e);
+        isSpeaking = false;
+        updateStatus('Speech error occurred. Click mic to start', false);
+        if (!isMuted) {
+          micBtn.disabled = false;
+          sendBtn.disabled = !currentTranscript;
+          cancelBtn.disabled = !isRecognizing;
+          startRecognition();
+        }
+      };
+      
+      window.speechSynthesis.speak(utterance);
+    }
+
+    micBtn.addEventListener('click', () => {
+      if (isRecognizing) {
+        stopRecognition();
+      } else {
+        startRecognition();
+      }
+    });
+
+    sendBtn.addEventListener('click', () => {
+      if (currentTranscript.trim()) {
+        sendMessage(currentTranscript.trim());
+      }
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      currentTranscript = '';
+      const messages = chat.querySelector('.messages').lastElementChild;
+      if (messages && messages.classList.contains('user') && !messages.classList.contains('sent')) {
+        messages.remove();
+      }
+      stopRecognition();
+      updateStatus('Click mic to start', false);
+      sendBtn.disabled = true;
+    });
+
+    muteBtn.addEventListener('click', toggleMute);
+
+    // --- Modal Functions ---
+    function showModal(title, bodyHtml, onSaveCallback) {
+        modalTitle.textContent = title;
+        modalBody.innerHTML = bodyHtml;
+        genericModal.classList.add('show');
+
+        // Remove previous event listener to prevent duplicates
+        modalSaveBtn.onclick = null; 
+        if (onSaveCallback) {
+            modalSaveBtn.onclick = onSaveCallback;
+        }
+    }
+
+    function hideModal() {
+        genericModal.classList.remove('show');
+    }
+
+    closeModalBtn.addEventListener('click', hideModal);
+    modalCancelBtn.addEventListener('click', hideModal);
+    // modalSaveBtn event listener is now set dynamically in showModal
+
+    document.getElementById('open-settings').addEventListener('click', () => {
+        showModal('Settings', `
+            <p>Adjust application settings here.</p>
+            <label>
+                API Key:
+                <input type="text" id="settingApiKey" value="${API_KEY}" placeholder="Enter your API Key">
+            </label>
+            <label>
+                Enable Quality Scoring:
+                <input type="checkbox" id="settingEnableQuality" checked>
+            </label>
+            <label>
+                Speech Volume:
+                <input type="range" id="settingSpeechVolume" min="0" max="1" step="0.1" value="${speechVolume}">
+                <span id="speechVolumeValue">${speechVolume}</span>
+            </label>
+            <label>
+                Auto-Send Delay (seconds):
+                <input type="number" id="settingAutoSendDelay" min="1" max="10" step="0.5" value="${autoSendDelay / 1000}">
+            </label>
+        `, () => {
+            // Save settings logic
+            // const newApiKey = document.getElementById('settingApiKey').value; // Not updating API_KEY directly in this version
+            // API_KEY = newApiKey; // If you want to make API key dynamic, you'd update this and GEMINI_API_URL
+
+            // const enableQuality = document.getElementById('settingEnableQuality').checked; // For future use
+            
+            speechVolume = parseFloat(document.getElementById('settingSpeechVolume').value);
+            autoSendDelay = parseFloat(document.getElementById('settingAutoSendDelay').value) * 1000; // Convert to milliseconds
+
+            console.log('Settings saved:', { speechVolume, autoSendDelay });
+            hideModal();
+        });
+
+        // Update volume display dynamically
+        const speechVolumeSlider = document.getElementById('settingSpeechVolume');
+        const speechVolumeValueSpan = document.getElementById('speechVolumeValue');
+        speechVolumeSlider.oninput = () => {
+            speechVolumeValueSpan.textContent = speechVolumeSlider.value;
+        };
+    });
+
+    document.getElementById('open-persona').addEventListener('click', () => {
+        showModal('Persona Selection', `
+            <p>Choose or customize AI personas for role-play.</p>
+            <label>
+                Customer Persona:
+                <textarea id="personaCustomer" rows="4" placeholder="Describe the customer persona">${customerPersona}</textarea>
+            </label>
+            <label>
+                Quality Assistant Persona:
+                <textarea id="personaQuality" rows="4" placeholder="Describe the quality assistant persona">${qualityAssistantPersona}</textarea>
+            </label>
+        `, () => {
+            // Save persona logic
+            customerPersona = document.getElementById('personaCustomer').value;
+            qualityAssistantPersona = document.getElementById('personaQuality').value;
+            console.log('Personas saved:', { customerPersona, qualityAssistantPersona });
+            hideModal();
+        });
+    });
+    // --- End Modal Functions ---
+
+    // Function to start a new role-play session
+    function startNewRolePlay() {
+        chatHistory = []; // Clear history
+        chat.querySelector('.messages').innerHTML = ''; // Clear chat display
+        qualityFeedbackPanel.innerHTML = '<div class="quality-comment">Feedback will appear here after each of your responses.</div>';
+        updateStatus('Click microphone to start');
+        addMessage(initialCustomerScenario, 'ai'); // Display initial customer message
+        chatHistory.push({ role: "model", parts: [{ text: initialCustomerScenario }] }); // Add to history as model's first turn
+        // Attempt to speak the initial message after a slight delay to ensure voices are loaded
+        setTimeout(() => {
+            speak(initialCustomerScenario);
+        }, 1000); 
+    }
+
+    // Initial setup when the page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        initRecognition();
+        startNewRolePlay(); // Start a new role-play session automatically on load
+    });
+  </script>
+</body>
+</html>
