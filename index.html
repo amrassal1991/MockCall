@@ -12,21 +12,21 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg-main: #f4f4f5; /* Light Gray */
-            --bg-container: #ffffff;
-            --bg-message-ai: #e4e4e7; /* Lighter Gray */
-            --bg-message-user: #3b82f6; /* Blue */
-            --text-main: #18181b; /* Near Black */
-            --text-secondary: #52525b;
-            --text-user-message: #ffffff;
-            --accent-color: #3b82f6;
+            --bg-main: #0a0a0a;
+            --bg-container: #1a1a1a;
+            --bg-message-ai: #2d2d2d;
+            --bg-message-user: #1a6cd0;
+            --text-main: #ffffff;
+            --text-secondary: #a0a0a0;
+            --accent-color: #1a6cd0;
             --success-color: #10b981;
             --error-color: #ef4444;
-            --quality-bg: #e4e4e7;
-            --quality-border: #d4d4d8;
-            --quality-score-good: #10b981;
-            --quality-score-bad: #ef4444;
-            --quality-score-neutral: #f59e0b;
+            --quality-bg: #2d2d2d; /* Darker background for quality panel */
+            --quality-border: #444;
+            --quality-score-good: #10b981; /* Green for good score */
+            --quality-score-bad: #ef4444; /* Red for bad score */
+            --quality-score-neutral: #f59e0b; /* Amber for neutral/needs improvement */
+            color-scheme: dark; /* Tells browser this is a dark theme */
         }
 
         body {
@@ -35,12 +35,12 @@
             color: var(--text-main);
             overflow: hidden;
         }
-        
+
         .chat-container::-webkit-scrollbar { width: 6px; }
-        .chat-container::-webkit-scrollbar-track { background: #f1f1f1; }
+        .chat-container::-webkit-scrollbar-track { background: #1a1a1a; }
         .chat-container::-webkit-scrollbar-thumb { background: #888; border-radius: 3px;}
         .chat-container::-webkit-scrollbar-thumb:hover { background: #555; }
-        
+
         .tooltip {
             visibility: hidden;
             opacity: 0;
@@ -51,9 +51,71 @@
             visibility: visible;
             opacity: 1;
         }
-        
+
         #loader-overlay {
             z-index: 50;
+        }
+
+        /* Styles for modals */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: var(--bg-container);
+            color: var(--text-main);
+            border-radius: 10px;
+            padding: 2rem;
+            min-width: 320px;
+            max-width: 90vw;
+            box-shadow: 0 4px 32px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .modal-content label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            font-size: 1rem;
+        }
+        .modal-content input[type="text"],
+        .modal-content input[type="number"],
+        .modal-content select,
+        .modal-content textarea {
+            margin-top: 0.2rem;
+            border-radius: 6px;
+            border: 1px solid var(--quality-border);
+            background: var(--quality-bg);
+            color: var(--text-main);
+            padding: 0.4rem 0.6rem;
+            font-size: 1rem;
+        }
+        .modal-content textarea {
+            resize: vertical;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+        .modal-actions button {
+            background: var(--accent-color);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .modal-actions button:hover {
+            background: #0e4a8a;
         }
     </style>
 </head>
@@ -64,54 +126,16 @@
     <div class="flex flex-col h-full w-full bg-gray-100">
 
         <!-- Header/Settings -->
-        <header class="flex items-center justify-between p-3 bg-white border-b border-gray-200 shadow-sm">
-            <h1 class="text-xl font-bold text-gray-800">AI Call Simulator</h1>
+        <header class="flex items-center justify-between p-3 bg-white border-b border-gray-200 shadow-sm bg-opacity-10 backdrop-filter backdrop-blur-lg">
+            <h1 class="text-xl font-bold text-gray-200">AI Call Simulator</h1>
             <div class="flex items-center space-x-4">
-                 <!-- Settings Section -->
-                 <div class="flex items-center space-x-2">
-                    <label for="tone-select" class="font-medium text-gray-600">Tone:</label>
-                    <select id="tone-select" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="Professional">Professional</option>
-                        <option value="Empathetic">Empathetic</option>
-                        <option value="Direct">Direct</option>
-                        <option value="Friendly">Friendly</option>
-                    </select>
-                </div>
-                 <div class="flex items-center space-x-2">
-                    <label for="timeout-input" class="font-medium text-gray-600">Auto-Send (s):</label>
-                    <input type="number" id="timeout-input" value="3" min="1" max="10" class="w-16 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                </div>
-
-                <!-- Persona Section -->
-                 <div class="flex items-center space-x-2">
-                    <label for="customer-type-select" class="font-medium text-gray-600">Customer Type:</label>
-                    <select id="customer-type-select" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="Any">Any</option>
-                        <option value="Frustrated">Frustrated</option>
-                        <option value="Inquiry">Inquiry</option>
-                        <option value="Rude">Rude</option>
-                        <option value="Fraudster (Simulated)">Fraudster (Simulated)</option>
-                    </select>
-                </div>
-                 <div class="flex items-center space-x-2">
-                    <label for="topic-select" class="font-medium text-gray-600">Topic:</label>
-                    <select id="topic-select" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="Any">Any</option>
-                        <option value="Internet Service">Internet Service</option>
-                        <option value="Internet Speed">Internet Speed</option>
-                        <option value="Billing">Billing</option>
-                        <option value="Account Security">Account Security</option>
-                        <option value="Technical Support">Technical Support</option>
-                        <option value="Service Complaint">Service Complaint</option>
-                    </select>
-                </div>
-                 <div class="flex items-center space-x-2">
-                    <label for="lang-select" class="font-medium text-gray-600">Language:</label>
-                    <select id="lang-select" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="en-US">English</option>
-                        <option value="es-ES">Spanish</option>
-                    </select>
-                </div>
+                <!-- Settings and Persona Buttons -->
+                <button id="open-settings-btn" class="p-2 bg-gray-700 rounded-full text-white hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" title="Settings">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 4.095a.75.75 0 01-.137.935l-1.39 1.39a.75.75 0 00-.22.53v.528c0 .198-.079.388-.22.53l-1.39 1.39a.75.75 0 01-.935.137l-.528-.22a.75.75 0 00-.53.22l-1.39 1.39a.75.75 0 01-.137.935l-.22.528a.75.75 0 00.22.53l1.39 1.39a.75.75 0 01.137.935l.528.22a.75.75 0 00.53-.22l1.39-1.39a.75.75 0 01.22-.53v-.528c0-.198.079-.388.22-.53l1.39-1.39a.75.75 0 01.935-.137l.528.22a.75.75 0 00.53-.22l1.39-1.39a.75.75 0 01.137-.935l.22-.528a.75.75 0 00-.22-.53l-1.39-1.39a.75.75 0 01-.137-.935l-.528-.22a.75.75 0 00-.53-.22zm-3 4.25a.75.75 0 100 1.5.75.75 0 000-1.5zM12 9a.75.75 0 100 1.5.75.75 0 000-1.5zM15 9a.75.75 0 100 1.5.75.75 0 000-1.5z" clip-rule="evenodd" /></svg>
+                </button>
+                <button id="open-persona-btn" class="p-2 bg-gray-700 rounded-full text-white hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" title="Persona">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" fill-rule="evenodd"/></svg>
+                </button>
                 <button id="new-call-btn" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75">
                     New Call
                 </button>
@@ -122,24 +146,24 @@
         <main class="flex flex-1 overflow-hidden p-4 gap-4">
 
             <!-- Left Panel: Chat -->
-            <div class="flex flex-col w-2/3 bg-white rounded-lg shadow-md border border-gray-200">
+            <div class="flex flex-col w-2/3 bg-white rounded-lg shadow-md border border-gray-200 bg-opacity-5 backdrop-filter backdrop-blur-lg">
                 <div id="chat-messages" class="flex-1 p-4 space-y-4 overflow-y-auto chat-container">
                     <!-- Messages will be injected here -->
                 </div>
-                <div class="p-4 border-t border-gray-200">
+                <div class="p-4 border-t border-gray-200 border-opacity-20">
                     <div id="status" class="text-center text-gray-500 mb-2 h-5"></div>
                     <div class="flex items-center space-x-2">
-                        <textarea id="message-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Speak or type your message..." rows="2"></textarea>
-                        <button id="mic-btn" class="p-3 bg-gray-200 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                            <svg class="w-6 h-6 text-gray-600" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z"/><path d="M5.5 11.5a5.5 5.5 0 0011 0h-1.5a4 4 0 01-8 0H5.5z"/><path d="M3 10a.5.5 0 00.5.5v1a4.5 4.5 0 008.552 2.036.5.5 0 10-.9-.408A3.5 3.5 0 018.5 14.5v-1a.5.5 0 00-1 0v1a.5.5 0 001 0v-1a.5.5 0 00-1 0v1a.5.5 0 001 0V12a.5.5 0 00-1 0v.5a3.5 3.5 0 01-7 0v-.5a.5.5 0 00-1 0v.5A4.5 4.5 0 008 15.91V16H5a1 1 0 000 2h10a1 1 0 000-2h-3v-.09A4.5 4.5 0 0016.5 11.5v-.5a.5.5 0 00-1 0v.5a3.5 3.5 0 01-7 0v-.5a.5.5 0 00-.5-.5H3z"/></svg>
+                        <textarea id="message-input" class="flex-1 p-2 border border-gray-700 rounded-md bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Speak or type your message..." rows="2"></textarea>
+                        <button id="mic-btn" class="p-3 bg-gray-700 rounded-full text-white hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z"/><path d="M5.5 11.5a5.5 5.5 0 0011 0h-1.5a4 4 0 01-8 0H5.5z"/><path d="M3 10a.5.5 0 00.5.5v1a4.5 4.5 0 008.552 2.036.5.5 0 10-.9-.408A3.5 3.5 0 018.5 14.5v-1a.5.5 0 00-1 0v1a.5.5 0 001 0v-1a.5.5 0 00-1 0v1a.5.5 0 001 0V12a.5.5 0 00-1 0v.5a3.5 3.5 0 01-7 0v-.5a.5.5 0 00-1 0v.5A4.5 4.5 0 008 15.91V16H5a1 1 0 000 2h10a1 1 0 000-2h-3v-.09A4.5 4.5 0 0016.5 11.5v-.5a.5.5 0 00-1 0v.5a3.5 3.5 0 01-7 0v-.5a.5.5 0 00-.5-.5H3z"/></svg>
                         </button>
                     </div>
                 </div>
             </div>
 
             <!-- Right Panel: Live Analysis -->
-            <div class="flex flex-col w-1/3 bg-white rounded-lg shadow-md border border-gray-200">
-                <h2 class="p-4 text-lg font-bold border-b border-gray-200">Live Quality Analysis</h2>
+            <div class="flex flex-col w-1/3 bg-white rounded-lg shadow-md border border-gray-200 bg-opacity-5 backdrop-filter backdrop-blur-lg">
+                <h2 class="p-4 text-lg font-bold border-b border-gray-200 border-opacity-20 text-gray-200">Live Quality Analysis</h2>
                 <div id="quality-feedback-panel" class="flex-1 p-4 space-y-3 overflow-y-auto">
                    <div class="text-gray-500 text-center pt-8">Waiting for first interaction...</div>
                 </div>
@@ -147,13 +171,74 @@
 
         </main>
     </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 class="text-xl font-bold">Settings</h2>
+            <div class="space-y-4">
+                <label for="tone-select">Tone:
+                    <select id="tone-select" class="w-full">
+                        <option value="Professional">Professional</option>
+                        <option value="Empathetic">Empathetic</option>
+                        <option value="Direct">Direct</option>
+                        <option value="Friendly">Friendly</option>
+                    </select>
+                </label>
+                <label for="timeout-input">Auto-Send (s):
+                    <input type="number" id="timeout-input" value="3" min="1" max="10" class="w-full">
+                </label>
+                <label for="lang-select">Language:
+                    <select id="lang-select" class="w-full">
+                        <option value="en-US">English</option>
+                        <option value="es-ES">Spanish</option>
+                    </select>
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button id="close-settings-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Persona Modal -->
+    <div id="persona-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 class="text-xl font-bold">Persona Settings</h2>
+            <div class="space-y-4">
+                <label for="customer-type-select">Customer Type:
+                    <select id="customer-type-select" class="w-full">
+                        <option value="Any">Any</option>
+                        <option value="Frustrated">Frustrated</option>
+                        <option value="Inquiry">Inquiry</option>
+                        <option value="Rude">Rude</option>
+                        <option value="Fraudster (Simulated)">Fraudster (Simulated)</option>
+                    </select>
+                </label>
+                <label for="topic-select">Topic:
+                    <select id="topic-select" class="w-full">
+                        <option value="Any">Any</option>
+                        <option value="Internet Service">Internet Service</option>
+                        <option value="Internet Speed">Internet Speed</option>
+                        <option value="Billing">Billing</option>
+                        <option value="Account Security">Account Security</option>
+                        <option value="Technical Support">Technical Support</option>
+                        <option value="Service Complaint">Service Complaint</option>
+                    </select>
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button id="close-persona-btn">Close</button>
+            </div>
+        </div>
+    </div>
     
     <!-- Report/Survey Modal -->
     <div id="report-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-40">
-        <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center p-4 border-b">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col bg-gray-900 text-white">
+            <div class="flex justify-between items-center p-4 border-b border-gray-700">
                 <h2 class="text-2xl font-bold">Call Report & Survey</h2>
-                <button id="close-report-btn" class="text-gray-500 hover:text-gray-800">&times;</button>
+                <button id="close-report-btn" class="text-gray-500 hover:text-gray-200">&times;</button>
             </div>
             <div class="flex-1 overflow-y-auto p-6">
                 <!-- Report Content -->
@@ -161,54 +246,54 @@
                     <h3 class="text-xl font-semibold mb-4">Interaction Analysis</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div>
-                            <h4 class="font-bold text-gray-700 mb-2">Call Summary</h4>
-                            <p id="report-summary" class="text-gray-600 bg-gray-50 p-3 rounded-md"></p>
+                            <h4 class="font-bold text-gray-400 mb-2">Call Summary</h4>
+                            <p id="report-summary" class="text-gray-300 bg-gray-800 p-3 rounded-md"></p>
                         </div>
                         <div>
-                            <h4 class="font-bold text-gray-700 mb-2">Key Metrics</h4>
-                            <div id="report-metrics" class="space-y-2"></div>
+                            <h4 class="font-bold text-gray-400 mb-2">Key Metrics</h4>
+                            <div id="report-metrics" class="space-y-2 text-gray-300"></div>
                         </div>
                     </div>
                      <div>
-                        <h4 class="font-bold text-gray-700 mb-2">Quality Score Trend</h4>
+                        <h4 class="font-bold text-gray-400 mb-2">Quality Score Trend</h4>
                         <div class="chart-container relative h-64 w-full max-w-2xl mx-auto">
                             <canvas id="quality-chart"></canvas>
                         </div>
                     </div>
                     <div class="mt-6">
-                       <h4 class="font-bold text-gray-700 mb-2">Organizer Bot Assessment</h4>
-                       <div id="organizer-assessment" class="text-gray-600 bg-gray-50 p-4 rounded-md space-y-3"></div>
+                       <h4 class="font-bold text-gray-400 mb-2">Organizer Bot Assessment</h4>
+                       <div id="organizer-assessment" class="text-gray-300 bg-gray-800 p-4 rounded-md space-y-3"></div>
                     </div>
                 </div>
                 <!-- Survey Section -->
-                <div id="survey-section" class="hidden mt-8 border-t pt-6">
+                <div id="survey-section" class="hidden mt-8 border-t border-gray-700 pt-6">
                     <h3 class="text-xl font-semibold mb-2">How did we do?</h3>
-                    <p class="text-gray-600 mb-4">Your feedback helps us improve.</p>
+                    <p class="text-gray-300 mb-4">Your feedback helps us improve.</p>
                     <div class="mb-4">
-                        <label for="satisfaction-rating" class="block font-medium text-gray-700 mb-2">Overall Satisfaction (1-10): <span id="rating-value" class="font-bold text-blue-600">5</span></label>
+                        <label for="satisfaction-rating" class="block font-medium text-gray-400 mb-2">Overall Satisfaction (1-10): <span id="rating-value" class="font-bold text-blue-400">5</span></label>
                         <input type="range" id="satisfaction-rating" min="1" max="10" value="5" class="w-full">
                     </div>
                     <div class="mb-4">
-                        <label for="verbatim-feedback" class="block font-medium text-gray-700 mb-2">Additional Comments:</label>
-                        <textarea id="verbatim-feedback" rows="4" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Tell us more about your experience..."></textarea>
+                        <label for="verbatim-feedback" class="block font-medium text-gray-400 mb-2">Additional Comments:</label>
+                        <textarea id="verbatim-feedback" rows="4" class="w-full p-2 border border-gray-700 rounded-md bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Tell us more about your experience..."></textarea>
                     </div>
                     <button id="submit-survey-btn" class="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75">Submit Feedback</button>
                 </div>
             </div>
-            <div class="p-4 bg-gray-50 border-t flex justify-end">
+            <div class="p-4 bg-gray-800 border-t border-gray-700 flex justify-end">
                 <button id="export-report-btn" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75">Export Report (.txt)</button>
             </div>
         </div>
     </div>
     
     <!-- Loader Overlay -->
-    <div id="loader-overlay" class="hidden fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center">
+    <div id="loader-overlay" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center">
         <div class="flex flex-col items-center">
             <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p class="mt-4 text-lg text-gray-700 font-semibold" id="loader-text">AI is thinking...</p>
+            <p class="mt-4 text-lg text-gray-300 font-semibold" id="loader-text">AI is thinking...</p>
         </div>
     </div>
 
@@ -266,11 +351,14 @@
                 this.qualityPanel = document.getElementById('quality-feedback-panel');
                 this.loader = document.getElementById('loader-overlay');
                 this.loaderText = document.getElementById('loader-text');
+                
+                // Moved settings inputs to modals, but retain references
                 this.toneSelect = document.getElementById('tone-select');
                 this.langSelect = document.getElementById('lang-select');
                 this.timeoutInput = document.getElementById('timeout-input');
-                this.customerTypeSelect = document.getElementById('customer-type-select'); // New
-                this.topicSelect = document.getElementById('topic-select'); // New
+                this.customerTypeSelect = document.getElementById('customer-type-select');
+                this.topicSelect = document.getElementById('topic-select');
+
                 this.newCallBtn = document.getElementById('new-call-btn');
                 this.reportModal = document.getElementById('report-modal');
                 this.closeReportBtn = document.getElementById('close-report-btn');
@@ -279,6 +367,14 @@
                 this.satisfactionRating = document.getElementById('satisfaction-rating');
                 this.ratingValue = document.getElementById('rating-value');
                 this.submitSurveyBtn = document.getElementById('submit-survey-btn');
+
+                // Modal buttons and modals
+                this.openSettingsBtn = document.getElementById('open-settings-btn');
+                this.settingsModal = document.getElementById('settings-modal');
+                this.closeSettingsBtn = document.getElementById('close-settings-btn');
+                this.openPersonaBtn = document.getElementById('open-persona-btn');
+                this.personaModal = document.getElementById('persona-modal');
+                this.closePersonaBtn = document.getElementById('close-persona-btn');
 
 
                 // State
@@ -295,11 +391,13 @@
                 };
                 
                 // Services / Bots
+                // Pass a reference to the current timeout value to SpeechService
                 this.speechService = new SpeechService(
                     () => this.state.isRecognizing,
                     (isRecognizing) => this.setRecognitionState(isRecognizing),
                     (transcript) => this.handleRecognitionResult(transcript),
-                    (error) => this.handleRecognitionError(error)
+                    (error) => this.handleRecognitionError(error),
+                    () => parseInt(this.timeoutInput.value, 10) * 1000 // Function to get live timeout value
                 );
                 
                 this.geminiAPI = new GeminiAPIService();
@@ -322,6 +420,12 @@
                 this.satisfactionRating.addEventListener('input', (e) => {
                     this.ratingValue.textContent = e.target.value;
                 });
+
+                // Modal event listeners
+                this.openSettingsBtn.addEventListener('click', () => this.settingsModal.classList.remove('hidden'));
+                this.closeSettingsBtn.addEventListener('click', () => this.settingsModal.classList.add('hidden'));
+                this.openPersonaBtn.addEventListener('click', () => this.personaModal.classList.remove('hidden'));
+                this.closePersonaBtn.addEventListener('click', () => this.personaModal.classList.add('hidden'));
             }
 
             startNewCall() {
@@ -333,7 +437,7 @@
                 this.state.fullConversationForReport = [];
                 this.messageInput.value = '';
                 this.chatMessages.innerHTML = '';
-                this.qualityPanel.innerHTML = '<div class="text-gray-500 text-center pt-8">Waiting for first interaction...</div>';
+                this.qualityPanel.innerHTML = '<div class="text-gray-500 text-center pt-8">Waiting for first interaction...</div>'; // Clear quality panel
                 this.reportModal.classList.add('hidden');
                 this.surveySection.classList.add('hidden');
                 this.messageInput.disabled = false;
@@ -365,12 +469,11 @@
                 const scenarioText = this.state.currentScenario.initialComplaint[lang];
                 this.state.customerPersona = this.getPersonaPrompt(this.state.currentScenario.customerName, scenarioText);
 
-                // Initial system message
-                const systemMessage = lang === 'es-ES' ?
-                    `Nueva llamada entrante de ${this.state.currentScenario.customerName}. Motivo: ${this.state.currentScenario.scenario}. Comience la llamada.` :
-                    `New call incoming from ${this.state.currentScenario.customerName}. Reason: ${this.state.currentScenario.scenario}. Please begin the call.`;
-
-                this.addMessage(systemMessage, 'system');
+                // Initial system notification for agent to start the call
+                this.addMessage(this.state.currentLanguage === 'es-ES' ? 'Notificación: Inicie la llamada ahora.' : 'Notification: Start the call now.', 'system');
+                
+                // No initial agent message is added here. The agent will speak or type their first message.
+                // The customer AI's first response is triggered by the agent's first actual message.
             }
 
             getPersonaPrompt(name, complaint) {
@@ -391,8 +494,7 @@
             handleRecognitionResult(transcript) {
                 this.messageInput.value = transcript;
                 this.state.currentTranscript = transcript;
-                clearTimeout(this.state.silenceTimer);
-
+                
                 // Voice commands
                 const command = transcript.toLowerCase().trim();
                 if (command.endsWith('send') || command.endsWith('enviar')) {
@@ -404,15 +506,12 @@
                     this.messageInput.value = '';
                     this.state.currentTranscript = '';
                     this.statusEl.textContent = this.state.currentLanguage === 'es-ES' ? 'Borrado. Escuchando de nuevo...' : 'Deleted. Listening again...';
-                    // Don't stop recognition, allow user to try again
+                    this.speechService.startRecognition(); // Keep recognition active for retry
                     return;
                 }
                 
-                // Auto-send timer
-                const timeoutSeconds = parseInt(this.timeoutInput.value, 10) * 1000;
-                this.state.silenceTimer = setTimeout(() => {
-                    this.sendMessage(this.state.currentTranscript);
-                }, timeoutSeconds);
+                // Reset and start auto-send timer
+                this.speechService.resetSilenceTimer();
             }
 
             handleRecognitionError(error) {
@@ -422,8 +521,8 @@
             async sendMessage(text) {
                 if (!text || !this.state.callInProgress) return;
 
-                this.speechService.stopRecognition();
-                clearTimeout(this.state.silenceTimer);
+                this.speechService.stopRecognition(); // Stop mic when agent sends message
+                this.speechService.clearSilenceTimer();
                 this.messageInput.value = '';
                 this.state.currentTranscript = '';
 
@@ -432,8 +531,13 @@
                 this.state.fullConversationForReport.push({ speaker: 'Agent', text });
 
 
-                this.state.turnCount++;
-                if (this.state.turnCount > 0) {
+                // The turn count starts after the *first* agent message that gets a customer response
+                // So, only increment turnCount if the chat history indicates an interaction is actually happening
+                if (this.state.fullConversationForReport.length > 1) { // Agent's first message + Customer's first message = 2 entries
+                    this.state.turnCount++;
+                }
+                
+                if (this.state.turnCount > 0) { // Only clear "Waiting for first interaction" after first proper turn
                    if (this.qualityPanel.innerHTML.includes("Waiting for first interaction")) {
                        this.qualityPanel.innerHTML = '';
                    }
@@ -447,13 +551,20 @@
                 this.state.chatHistory.push({ role: 'model', parts: [{ text: customerResponse }] });
                 this.state.fullConversationForReport.push({ speaker: 'Customer', text: customerResponse });
 
-                // Get Quality Coach Feedback
-                this.showLoader(true, 'Quality Coach is analyzing...');
-                const qualityFeedback = await this.getQualityFeedback(text, customerResponse);
-                this.displayQualityFeedback(qualityFeedback);
-                this.state.qualityScores.push(qualityFeedback.score);
+                // Get Quality Coach Feedback - only if a real interaction has occurred (i.e., agent sent a message and customer responded)
+                if (this.state.fullConversationForReport.length >= 2) { // At least one agent, one customer message
+                    this.showLoader(true, 'Quality Coach is analyzing...');
+                    const qualityFeedback = await this.getQualityFeedback(text, customerResponse);
+                    this.displayQualityFeedback(qualityFeedback);
+                    this.state.qualityScores.push(qualityFeedback.score);
+                }
 
                 this.showLoader(false);
+                
+                // Automatically restart recognition after AI response if not muted
+                // This handles the flow where AI speaks, then agent mic reactivates
+                // Also handles the initial flow after customer's first response
+                this.speechService.startRecognition();
 
                 // Check for call end condition
                 if (this.state.turnCount >= 6 + Math.floor(Math.random() * 5)) { // 6-10 turns
@@ -492,7 +603,7 @@
 
             addMessage(text, sender, name) {
                 const div = document.createElement('div');
-                div.className = `w-full flex ${sender === 'user' || sender === 'system' ? 'justify-end' : 'justify-start'}`;
+                div.className = `w-full flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
                 
                 const messageBubble = document.createElement('div');
                 let bubbleClass;
@@ -500,15 +611,15 @@
 
                 switch (sender) {
                     case 'user':
-                        bubbleClass = 'bg-blue-500 text-white';
+                        bubbleClass = 'bg-blue-600 text-white';
                         senderName = 'Agent';
                         break;
                     case 'ai':
-                        bubbleClass = 'bg-gray-200 text-gray-800';
+                        bubbleClass = 'bg-gray-700 text-gray-200';
                         senderName = this.state.currentScenario.customerName || 'Customer';
                         break;
                     case 'system':
-                        bubbleClass = 'bg-yellow-100 text-yellow-800 border border-yellow-300';
+                        bubbleClass = 'bg-yellow-800 text-yellow-100 border border-yellow-600';
                         senderName = 'System';
                         break;
                 }
@@ -523,12 +634,12 @@
 
             displayQualityFeedback({ score, comment, example }) { // Added 'example' parameter
                 const div = document.createElement('div');
-                div.className = 'p-3 rounded-lg bg-gray-50 border border-gray-200 shadow-sm';
+                div.className = 'p-3 rounded-lg bg-gray-800 border border-gray-700 shadow-sm';
 
                 let scoreColorClass;
-                if (score >= 85) scoreColorClass = 'text-green-600 bg-green-100';
-                else if (score >= 60) scoreColorClass = 'text-yellow-600 bg-yellow-100';
-                else scoreColorClass = 'text-red-600 bg-red-100';
+                if (score >= 85) scoreColorClass = 'text-green-400 bg-green-900';
+                else if (score >= 60) scoreColorClass = 'text-yellow-400 bg-yellow-900';
+                else scoreColorClass = 'text-red-400 bg-red-900';
 
                 // Updated quality score formula and added S4 guidelines
                 const qualityScoreFormula = `The Quality Score is based on S4 Guidelines:
@@ -543,16 +654,16 @@ Higher scores reflect "Highly Effective" behaviors, often with specific examples
 
                 let exampleHtml = '';
                 if (example) {
-                    exampleHtml = `<p class="text-sm text-gray-700 mt-2"><strong>Example:</strong> <em>"${example}"</em></p>`;
+                    exampleHtml = `<p class="text-sm text-gray-400 mt-2"><strong>Example:</strong> <em>"${example}"</em></p>`;
                 }
 
                 div.innerHTML = `
                     <div class="flex justify-between items-center mb-1">
-                        <span class="font-bold text-gray-700">Turn ${this.state.turnCount} Analysis</span>
+                        <span class="font-bold text-gray-400">Turn ${this.state.turnCount} Analysis</span>
                         <div class="flex items-center space-x-2">
-                             <span class="text-xl">💡</span>
+                             <span class="text-xl text-blue-400">💡</span>
                              <div class="has-tooltip relative">
-                                <span class="text-xl cursor-pointer">ℹ️</span>
+                                <span class="text-xl cursor-pointer text-blue-400">ℹ️</span>
                                 <div class="tooltip absolute bottom-full mb-2 w-64 bg-gray-800 text-white text-xs rounded p-2 z-10 -translate-x-1/2 left-1/2">
                                     ${qualityScoreFormula.replace(/\n/g, '<br>')}
                                 </div>
@@ -560,7 +671,7 @@ Higher scores reflect "Highly Effective" behaviors, often with specific examples
                              <span class="font-bold text-lg px-2 py-0.5 rounded ${scoreColorClass}">${score}</span>
                         </div>
                     </div>
-                    <p class="text-gray-600">${comment}</p>
+                    <p class="text-gray-300">${comment}</p>
                     ${exampleHtml}
                 `;
                 this.qualityPanel.appendChild(div);
@@ -619,7 +730,7 @@ Higher scores reflect "Highly Effective" behaviors, often with specific examples
                      `As an AI Organizer Bot, analyze the following call transcript and quality scores. The report should be accurate, well-structured, and resourceful for improving the agent's learning curve, based on S4 quality guidelines.
                       Transcript: ${JSON.stringify(this.state.fullConversationForReport)}
                       Quality Scores per turn: ${this.state.qualityScores.join(', ')}
-                      Create a report with: 1. A concise summary of the call. 2. A detailed assessment of the agent's performance based on S4 guidelines (strengths/weaknesses), including how the marking scheme applies. 3. Self-healing recommendations for the system (e.g., "Suggest modifying complaint script to better handle X.").
+                      Create a report with: 1. A concise summary of the call. 2. A detailed assessment of the agent's performance based on S4 guidelines (strengths/debilidades), including how the marking scheme applies. 3. Self-healing recommendations for the system (e.g., "Suggest modifying complaint script to better handle X.").
                       Return only a JSON object with keys "summary", "assessment", and "recommendations".`;
 
                 try {
@@ -632,7 +743,7 @@ Higher scores reflect "Highly Effective" behaviors, often with specific examples
                     
                     const assessmentHtml = `
                         <p class="mb-2"><strong class="font-semibold">Assessment:</strong> ${reportData.assessment}</p>
-                        <p><strong class="font-semibold">Self-Healing Suggestion:</strong> <span class="bg-blue-100 text-blue-800 p-1 rounded">${reportData.recommendations}</span></p>
+                        <p><strong class="font-semibold">Self-Healing Suggestion:</strong> <span class="bg-blue-600 text-blue-100 p-1 rounded">${reportData.recommendations}</span></p>
                     `;
                     document.getElementById('organizer-assessment').innerHTML = assessmentHtml;
                     
@@ -686,8 +797,8 @@ Higher scores reflect "Highly Effective" behaviors, often with specific examples
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        scales: { y: { beginAtZero: true, max: 100 } },
-                        plugins: { legend: { display: false }, title: { display: true, text: 'Quality Score per Interaction Turn'} }
+                        scales: { y: { beginAtZero: true, max: 100, ticks: { color: 'white' } }, x: { ticks: { color: 'white' } } },
+                        plugins: { legend: { display: false }, title: { display: true, text: 'Quality Score per Interaction Turn', color: 'white'} }
                     }
                 });
             }
@@ -734,11 +845,13 @@ ${fullTranscript}
 
         // --- SERVICES ---
         class SpeechService {
-            constructor(getIsRecognizing, setIsRecognizing, onResult, onError) {
+            constructor(getIsRecognizing, setIsRecognizing, onResult, onError, getSilenceThreshold) {
                 this.getIsRecognizing = getIsRecognizing;
                 this.setIsRecognizing = setIsRecognizing;
                 this.onResult = onResult;
                 this.onError = onError;
+                this.getSilenceThreshold = getSilenceThreshold; // Function to get live timeout value
+                this.silenceTimer = null; // Internal silence timer
 
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                 if (!SpeechRecognition) {
@@ -749,10 +862,18 @@ ${fullTranscript}
                 this.recognition.interimResults = true;
                 this.recognition.continuous = true;
 
-                this.recognition.onstart = () => this.setIsRecognizing(true);
-                this.recognition.onend = () => this.setIsRecognizing(false);
+                this.recognition.onstart = () => {
+                    this.setIsRecognizing(true);
+                    this.clearSilenceTimer(); // Clear timer on start
+                };
+                this.recognition.onend = () => {
+                    this.setIsRecognizing(false);
+                    this.clearSilenceTimer(); // Clear timer on end
+                };
                 this.recognition.onerror = (event) => this.onError(event.error);
                 this.recognition.onresult = (event) => {
+                    this.resetSilenceTimer(); // Reset timer on any speech result
+
                     let finalTranscript = '';
                     for (let i = event.resultIndex; i < event.results.length; ++i) {
                         if (event.results[i].isFinal) {
@@ -774,17 +895,44 @@ ${fullTranscript}
                 }
             }
 
+            startRecognition() {
+                if (!this.getIsRecognizing()) {
+                    try {
+                        this.recognition.start();
+                    } catch (e) {
+                        console.error('Failed to start recognition:', e);
+                        this.onError('Failed to access microphone. Please check permissions.');
+                    }
+                }
+            }
+
             stopRecognition() {
                 if(this.getIsRecognizing()) {
                     this.recognition.stop();
+                }
+            }
+
+            // Methods to manage internal silence timer
+            resetSilenceTimer() {
+                this.clearSilenceTimer();
+                this.silenceTimer = setTimeout(() => {
+                    console.log('Silence detected - auto-sending message');
+                    this.onResult('send'); // Simulate 'send' command
+                }, this.getSilenceThreshold());
+            }
+
+            clearSilenceTimer() {
+                if (this.silenceTimer) {
+                    clearTimeout(this.silenceTimer);
+                    this.silenceTimer = null;
                 }
             }
         }
 
         class GeminiAPIService {
             constructor() {
-                this.API_KEY = "AIzaSyDEdZtmIWDlMIEgL3c73Gxu0aXoAkt3MWE"; // Updated API Key
-                this.API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.API_KEY}`;
+                // Use the Cloudflare Worker URL
+                this.API_URL = 'https://workers-playground-tiny-sky-5f02.amrassal91.workers.dev';
             }
 
             async generateContent(promptOrHistory) {
@@ -799,7 +947,9 @@ ${fullTranscript}
                         body: JSON.stringify(payload)
                     });
                     if (!response.ok) {
-                        throw new Error(`API Error: ${response.statusText}`);
+                        // Attempt to parse error details if available
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(`API Error: ${response.statusText} - ${JSON.stringify(errorData)}`);
                     }
                     const data = await response.json();
                     
