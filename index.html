@@ -42,10 +42,11 @@
       display: flex;
       gap: 1rem; /* Gap between chat and quality panel */
       height: calc(100vh - 2rem);
+      flex-direction: row; /* Default for desktop */
     }
 
     .container {
-      flex: 2; /* Chat container takes more space */
+      flex: 2.5; /* Chat container takes more space */
       display: flex;
       flex-direction: column;
       position: relative;
@@ -55,8 +56,14 @@
       backdrop-filter: blur(10px);
     }
 
+    .quality-panel-wrapper {
+      flex: 1.5; /* Quality panel wrapper takes less space */
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
     .quality-panel {
-      flex: 1; /* Quality panel takes less space */
       background: var(--quality-bg);
       box-shadow: 0 2px 12px rgba(0,0,0,0.3);
       border-radius: 12px;
@@ -64,6 +71,7 @@
       display: flex;
       flex-direction: column;
       border: 1px solid var(--quality-border);
+      flex: 1; /* Allows it to take available space */
     }
 
     .quality-panel h2 {
@@ -140,13 +148,13 @@
         height: auto;
         margin: 0.5rem;
       }
-      .container, .quality-panel {
+      .container, .quality-panel, .quality-panel-wrapper {
         flex: none;
         width: auto;
         margin-bottom: 1rem;
       }
-      .quality-panel {
-        height: 300px; /* Give it a fixed height on mobile */
+      .quality-panel, .s4-progress-panel {
+        height: auto; /* Allow height to adjust on mobile */
       }
     }
 
@@ -486,7 +494,7 @@
         flex-direction: column;
         gap: 1rem;
         border: 1px solid var(--quality-border);
-        margin-top: 1rem; /* Space from quality panel */
+        /* No margin-top here, as it's now part of the wrapper */
     }
 
     .s4-progress-panel h2 {
@@ -553,6 +561,49 @@
 </head>
 <body>
   <div class="main-layout">
+    <!-- Quality and S4 panel wrapper - now on the left -->
+    <div class="quality-panel-wrapper">
+      <div class="quality-panel">
+        <h2>Quality Feedback</h2>
+        <div class="quality-feedback-content" id="quality-feedback-panel">
+          <div class="quality-comment">Feedback will appear here after each of your responses.</div>
+        </div>
+      </div>
+      <div class="s4-progress-panel">
+        <h2>S4 Progress</h2>
+        <div id="s4-phases-container">
+          <div class="s4-phase" id="s1-phase">
+            <div class="s4-indicator-bulb"></div>
+            <div class="s4-phase-content">
+              <div class="s4-phase-title">S1: Start</div>
+              <div class="s4-phase-description">Greeting, Reflect Reason, Empathize, Take Ownership, Authenticate/Set Agenda.</div>
+            </div>
+          </div>
+          <div class="s4-phase" id="s2-phase">
+            <div class="s4-indicator-bulb"></div>
+            <div class="s4-phase-content">
+              <div class="s4-phase-title">S2: Solve</div>
+              <div class="s4-phase-description">Obtain Info/Probe, Resolve Issue, Build Value/Promote.</div>
+            </div>
+          </div>
+          <div class="s4-phase" id="s3-phase">
+            <div class="s4-indicator-bulb"></div>
+            <div class="s4-phase-content">
+              <div class="s4-phase-title">S3: Sell</div>
+              <div class="s4-phase-description">Transition to Offer, Present Offer, Overcome Objections, Proactively Close Sale.</div>
+            </div>
+          </div>
+          <div class="s4-phase" id="s4-phase">
+            <div class="s4-indicator-bulb"></div>
+            <div class="s4-phase-content">
+              <div class="s4-phase-title">S4: Summarize</div>
+              <div class="s4-phase-description">Summarize Actions, Close Contact, Documentation.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="container">
       <div class="header">
         <h1>Call Simulator 🎧</h1>
@@ -595,46 +646,6 @@
       <div class="modal-buttons" style="position:absolute;top:1rem;right:1rem;z-index:200;">
         <button id="open-settings" class="control-button" style="background: #4b5563; padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;" title="Settings">⚙️</button>
         <button id="open-persona" class="control-button" style="background: #4b5563; padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin-left: 0.5rem;" title="Persona">🧑‍💼</button>
-      </div>
-    </div>
-
-    <div class="quality-panel">
-      <h2>Quality Feedback</h2>
-      <div class="quality-feedback-content" id="quality-feedback-panel">
-        <div class="quality-comment">Feedback will appear here after each of your responses.</div>
-      </div>
-      <div class="s4-progress-panel">
-        <h2>S4 Progress</h2>
-        <div id="s4-phases-container">
-          <div class="s4-phase" id="s1-phase">
-            <div class="s4-indicator-bulb"></div>
-            <div class="s4-phase-content">
-              <div class="s4-phase-title">S1: Start</div>
-              <div class="s4-phase-description">Greeting, Reflect Reason, Empathize, Take Ownership, Authenticate/Set Agenda.</div>
-            </div>
-          </div>
-          <div class="s4-phase" id="s2-phase">
-            <div class="s4-indicator-bulb"></div>
-            <div class="s4-phase-content">
-              <div class="s4-phase-title">S2: Solve</div>
-              <div class="s4-phase-description">Obtain Info/Probe, Resolve Issue, Build Value/Promote.</div>
-            </div>
-          </div>
-          <div class="s4-phase" id="s3-phase">
-            <div class="s4-indicator-bulb"></div>
-            <div class="s4-phase-content">
-              <div class="s4-phase-title">S3: Sell</div>
-              <div class="s4-phase-description">Transition to Offer, Present Offer, Overcome Objections, Proactively Close Sale.</div>
-            </div>
-          </div>
-          <div class="s4-phase" id="s4-phase">
-            <div class="s4-indicator-bulb"></div>
-            <div class="s4-phase-content">
-              <div class="s4-phase-title">S4: Summarize</div>
-              <div class="s4-phase-description">Summarize Actions, Close Contact, Documentation.</div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -796,12 +807,20 @@
                 utterance.onend = () => {
                     console.log('Speech ended');
                     this.isSpeaking = false;
+                    // Automatically reactivate microphone if not muted
+                    if (!isMuted) {
+                        startRecognition();
+                    }
                     resolve();
                 };
 
                 utterance.onerror = (err) => {
                     console.error('Speech error:', err);
                     this.isSpeaking = false;
+                    // Automatically reactivate microphone if not muted
+                    if (!isMuted) {
+                        startRecognition();
+                    }
                     reject(err);
                 };
 
@@ -810,6 +829,8 @@
                     try {
                         this.synthesis.speak(utterance);
                         console.log('Speech synthesis started for:', text);
+                        // Mute microphone while AI is speaking
+                        stopRecognition(); 
                     } catch (e) {
                         console.error('Error calling speechSynthesis.speak():', e);
                         this.isSpeaking = false;
@@ -879,9 +900,12 @@
     // Initial customer scenario setup - now dynamically set
     let currentScenario = null; // Stores the full scenario object
     let currentInitialCustomerScenarioText = ""; // Stores just the initial complaint text
+    let currentS4Phase = 'S1'; // Track current S4 phase
 
     let customerPersona = "You are a Comcast customer with a billing inquiry. You are slightly frustrated but polite. Respond concisely.";
     let qualityAssistantPersona = "You are an S4 Quality Assurance Specialist. Evaluate the agent's last response based on the S4 guidelines provided. Provide a score out of 100 and a brief comment. Focus on Start, Solve, Sell, Summarize, and Foundational Behaviors. Also, identify the current S4 phase (S1, S2, S3, or S4) the conversation is in based on the agent's last response and the overall flow.";
+    let flowManagerPersona = "You are a Call Flow Manager AI. Your role is to guide the agent through the S4 call flow. Based on the conversation history and the current S4 phase, provide a subtle suggestion or prompt to help the agent progress or conclude the call. Your tone should be helpful and encouraging, not critical. Suggest the next logical S4 phase or a concluding action (e.g., 'summarize the call').";
+
 
     const S4_GUIDELINES_SUMMARY = `
         S4 Universal Call Flow:
@@ -1189,17 +1213,17 @@
         S4 Guidelines Summary: ${S4_GUIDELINES_SUMMARY}
         
         Here is the conversation turn to evaluate:
-        Customer: "${precedingCustomerMessageText}"
+        Customer: "${precedingCustomerMessageText || currentInitialCustomerScenarioText}"
         Agent: "${text}"
         
-        Focus specifically on whether the agent's response was appropriate given the customer's statement *immediately preceding* the agent's response.
+        Focus specifically on whether the agent's response was appropriate given the customer's statement *immediately preceding* the agent's response (or the initial scenario if this is the first agent response).
         For the 'Start' phase (S1), ensure the agent reflects the reason for contact and shows empathy *if the reason was provided by the customer*. If no specific reason was explicitly provided yet by the customer, evaluate the general greeting and rapport building.
         Consider the overall flow and adherence to S4 principles.
         Also consider the agent's speech characteristics:
         - Speech Confidence: ${(confidence * 100).toFixed(1)}% (Higher is better)
         - Dead Air Duration: ${deadAirDuration.toFixed(1)} seconds (Lower is better, typically aim for < 1 second within a turn, but longer pauses between turns are natural)
         
-        Provide your response in JSON format with the following keys: "score" (integer), "comment" (string), "s4Phase" (string, e.g., "S1", "S2", "S3", "S4"), "reasoning" (string), "suggestions" (string).`;
+        Provide your response in JSON format with the following keys: "score" (integer), "comment" (string), "s4Phase" (string, e.g., "S1", "S2", "S3", "S4" - YOU MUST PROVIDE ONE OF THESE), "reasoning" (string), "suggestions" (string).`;
             
         const qualityResponseSchema = {
             type: "OBJECT",
@@ -1227,7 +1251,7 @@
             body: JSON.stringify(qualityPayload)
         });
         const qualityData = await qualityRes.json();
-        let qualityFeedback = { score: 0, comment: 'Error: Could not get quality feedback.', s4Phase: 'N/A', reasoning: 'No reasoning provided.', suggestions: 'No suggestions provided.' };
+        let qualityFeedback = { score: 0, comment: 'Error: Could not get quality feedback.', s4Phase: 'S1', reasoning: 'No reasoning provided.', suggestions: 'No suggestions provided.' }; // Default to S1
         let qualityDetails = { confidence, deadAirDuration };
 
         if (qualityData.candidates && qualityData.candidates.length > 0 &&
@@ -1250,7 +1274,71 @@
         }
         
         addQualityFeedback(qualityFeedback.score, qualityFeedback.comment, qualityDetails);
-        updateS4Progress(qualityFeedback.s4Phase);
+        currentS4Phase = qualityFeedback.s4Phase; // Update current S4 phase based on quality AI
+        updateS4Progress(currentS4Phase);
+
+        // --- Flow Management AI ---
+        const flowManagerPrompt = `As a Call Flow Manager AI, your role is to guide the agent through the S4 call flow.
+        Current S4 Phase: ${currentS4Phase}.
+        Conversation History: ${JSON.stringify(chatHistory.slice(-4))} (last 4 turns for context)
+        Agent's Last Response: "${text}"
+        Customer's Last Response: "${customerReply}"
+
+        Based on the current S4 phase and the recent conversation, provide a subtle suggestion or prompt to help the agent progress or conclude the call. Your tone should be helpful and encouraging, not critical.
+        
+        If the current phase is S1, suggest moving towards problem-solving.
+        If the current phase is S2, suggest looking for sales opportunities or resolving the issue fully.
+        If the current phase is S3, suggest closing the sale or moving to summarization if the sale is not viable.
+        If the current phase is S4, suggest concluding the call.
+        If the conversation seems stuck or repetitive, suggest a way to move forward.
+
+        Provide your response in JSON format with the following keys: "suggestion" (string), "nextS4Phase" (string, e.g., "S1", "S2", "S3", "S4", "Completed"), "interventionNeeded" (boolean, true if a strong prompt is needed).`;
+
+        const flowManagerResponseSchema = {
+            type: "OBJECT",
+            properties: {
+                "suggestion": { "type": "STRING" },
+                "nextS4Phase": { "type": "STRING", "enum": ["S1", "S2", "S3", "S4", "Completed"] },
+                "interventionNeeded": { "type": "BOOLEAN" }
+            },
+            "propertyOrdering": ["suggestion", "nextS4Phase", "interventionNeeded"]
+        };
+
+        const flowManagerPayload = {
+            contents: [{ role: "user", parts: [{ text: flowManagerPrompt }] }],
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: flowManagerResponseSchema
+            }
+        };
+
+        const flowManagerRes = await fetch(GEMINI_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(flowManagerPayload)
+        });
+        const flowManagerData = await flowManagerRes.json();
+        let flowManagerFeedback = { suggestion: '', nextS4Phase: currentS4Phase, interventionNeeded: false };
+
+        if (flowManagerData.candidates && flowManagerData.candidates.length > 0 &&
+            flowManagerData.candidates[0].content && flowManagerData.candidates[0].content.parts &&
+            flowManagerData.candidates[0].content.parts.length > 0) {
+            try {
+                const jsonText = flowManagerData.candidates[0].content.parts[0].text;
+                flowManagerFeedback = JSON.parse(jsonText);
+            } catch (parseError) {
+                console.error('Error parsing flow manager AI JSON:', parseError);
+            }
+        }
+
+        if (flowManagerFeedback.suggestion) {
+            addMessage(flowManagerFeedback.suggestion, 'ai', 'Flow Manager:');
+        }
+        if (flowManagerFeedback.nextS4Phase && flowManagerFeedback.nextS4Phase !== currentS4Phase) {
+            // Optionally update S4 progress based on Flow Manager's suggestion if it's a clear progression
+            // For now, we'll let Quality AI drive the main S4 progress, but this could be an override.
+        }
+
 
       } catch (e) {
         console.error('API Error:', e);
@@ -1407,11 +1495,16 @@
                 Quality Assistant Persona:
                 <textarea id="personaQuality" rows="4" placeholder="Describe the quality assistant persona">${qualityAssistantPersona}</textarea>
             </label>
+            <label>
+                Flow Manager Persona:
+                <textarea id="personaFlowManager" rows="4" placeholder="Describe the flow manager persona">${flowManagerPersona}</textarea>
+            </label>
         `, () => {
             // Save persona logic
             customerPersona = document.getElementById('personaCustomer').value;
             qualityAssistantPersona = document.getElementById('personaQuality').value;
-            console.log('Personas saved:', { customerPersona, qualityAssistantPersona });
+            flowManagerPersona = document.getElementById('personaFlowManager').value;
+            console.log('Personas saved:', { customerPersona, qualityAssistantPersona, flowManagerPersona });
             hideModal();
         });
     });
@@ -1471,7 +1564,7 @@
         }
 
         let foundActive = false;
-        for (const key in s4Phases) {
+        for (const key of ['S1', 'S2', 'S3', 'S4']) { // Ensure correct order
             if (key === phase) {
                 s4Phases[key].classList.add('active');
                 foundActive = true;
@@ -1487,8 +1580,9 @@
         qualityFeedbackHistory = []; // Clear quality feedback history
         chat.querySelector('.messages').innerHTML = ''; // Clear chat display
         qualityFeedbackPanel.innerHTML = '<div class="quality-comment">Feedback will appear here after each of your responses.</div>';
-        updateStatus('Click microphone to start');
-        updateS4Progress('S1'); // Reset S4 progress to S1
+        updateStatus('Start your call by speaking into the microphone.');
+        currentS4Phase = 'S1'; // Reset S4 phase
+        updateS4Progress(currentS4Phase); // Reset S4 progress to S1
 
         // Add a prominent initial message about microphone permissions
         addMessage("Welcome! To use the simulator, please ensure your browser has microphone access enabled. If you encounter issues, check your browser's site settings for microphone permissions and refresh the page.", 'ai', 'System:');
@@ -1518,11 +1612,13 @@
         currentScenario = newScenario;
         currentInitialCustomerScenarioText = currentScenario.initialComplaint;
 
-        // Add the initial customer scenario as TEXT only.
-        addMessage(currentInitialCustomerScenarioText, 'ai', `${currentScenario.customerName}:`); 
-        chatHistory.push({ role: "model", parts: [{ text: currentInitialCustomerScenarioText }] }); // Add to history as model's first turn
+        // The customer does NOT start the call. The agent (user) starts.
+        // The customer's initial complaint will be the *context* for the agent's first response.
+        // We will add a system message to set the scene.
+        addMessage(`Scenario: ${currentScenario.scenario}. The customer is ${currentScenario.customerName} and their initial complaint is: "${currentInitialCustomerScenarioText}". Please begin the call.`, 'ai', 'System:');
         
-        // The first spoken message from the AI will occur after the user's first input.
+        // No initial customer message pushed to chatHistory here. The first user message will be the agent's greeting.
+        // The first customer message will be generated by the AI after the agent's first turn.
     }
 
     // Initial setup when the page loads
