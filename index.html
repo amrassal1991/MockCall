@@ -852,7 +852,7 @@
     const speechService = new SpeechService(); // Instantiate the SpeechService
 
     // Use the provided API key directly
-    const API_KEY = ""; // Changed to empty string as per user request
+    const API_KEY = "AIzaSyAuGsOgCCzlSBvpcelKWcZXBf1FXFx-zMg"; // Changed to empty string as per user request
     const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
     
     const micBtn = document.getElementById('mic-btn');
@@ -882,7 +882,7 @@
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
     const closeModalBtn = document.getElementById('closeModalBtn');
-    const modalSaveBtn = document = document.getElementById('modalSaveBtn');
+    const modalSaveBtn = document.getElementById('modalSaveBtn'); // Corrected assignment
     const modalCancelBtn = document.getElementById('modalCancelBtn');
 
     let recognition;
@@ -890,7 +890,7 @@
     let currentTranscript = '';
     let silenceTimer = null;
     let isMuted = false;
-    let autoSendDelay = 2000; // Default auto-send delay in milliseconds (2 seconds)
+    let autoSendDelay = 60000; // Default auto-send delay in milliseconds (60 seconds)
     let lastSpeechEndTime = 0; // To track dead air
 
     // Chat history for context
@@ -1121,6 +1121,7 @@
 
       try {
         recognition.start();
+        console.log('Recognition started.');
       } catch (e) {
         console.error('Failed to start recognition:', e);
         updateStatus('Failed to access microphone. Please check permissions.');
@@ -1130,6 +1131,7 @@
     function stopRecognition() {
       if (recognition && isRecognizing) {
         recognition.stop();
+        console.log('Recognition stopped.');
         clearTimeout(silenceTimer);
       }
     }
@@ -1143,10 +1145,12 @@
       if (isMuted) {
         stopRecognition(); // Stop recognition immediately if muted
         speechService.stop(); // Stop any ongoing speech
+        console.log('Microphone manually muted.');
       } else {
         // If unmuted and AI is not speaking, restart recognition
         if (!speechService.isSpeaking) {
           startRecognition();
+          console.log('Microphone manually unmuted.');
         }
       }
     }
@@ -1187,6 +1191,7 @@
         customerPromptContent.push({ role: "user", parts: [{ text: text }] });
 
         const customerPayload = { contents: customerPromptContent };
+        console.log("Customer AI Request Payload:", JSON.stringify(customerPayload, null, 2));
 
         const customerRes = await fetch(GEMINI_API_URL, {
           method: 'POST',
@@ -1194,6 +1199,7 @@
           body: JSON.stringify(customerPayload)
         });
         const customerData = await customerRes.json();
+        console.log("Customer AI Raw Response:", JSON.stringify(customerData, null, 2)); // Log raw response
         const customerReply = customerData.candidates?.[0]?.content?.parts?.[0]?.text || '(No customer response)';
         
         addMessage(customerReply, 'ai', `${currentScenario.customerName}:`); // Add customer name
@@ -1249,6 +1255,7 @@
                 responseSchema: qualityResponseSchema
             }
         };
+        console.log("Quality AI Request Payload:", JSON.stringify(qualityPayload, null, 2));
 
         const qualityRes = await fetch(GEMINI_API_URL, {
             method: 'POST',
@@ -1256,6 +1263,7 @@
             body: JSON.stringify(qualityPayload)
         });
         const qualityData = await qualityRes.json();
+        console.log("Quality AI Raw Response:", JSON.stringify(qualityData, null, 2)); // Log raw response
         let qualityFeedback = { score: 0, comment: 'Error: Could not get quality feedback.', s4Phase: 'S1', reasoning: 'No reasoning provided.', suggestions: 'No suggestions provided.' }; // Default to S1
         let qualityDetails = { confidence, deadAirDuration };
 
@@ -1317,6 +1325,7 @@
                 responseSchema: flowManagerResponseSchema
             }
         };
+        console.log("Flow Manager AI Request Payload:", JSON.stringify(flowManagerPayload, null, 2));
 
         const flowManagerRes = await fetch(GEMINI_API_URL, {
             method: 'POST',
@@ -1324,6 +1333,7 @@
             body: JSON.stringify(flowManagerPayload)
         });
         const flowManagerData = await flowManagerRes.json();
+        console.log("Flow Manager AI Raw Response:", JSON.stringify(flowManagerData, null, 2)); // Log raw response
         let flowManagerFeedback = { suggestion: '', nextS4Phase: currentS4Phase, interventionNeeded: false };
 
         if (flowManagerData.candidates && flowManagerData.candidates.length > 0 &&
