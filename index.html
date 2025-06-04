@@ -71,7 +71,7 @@
       display: flex;
       flex-direction: column;
       border: 1px solid var(--quality-border);
-      flex: 1; /* Allows it to take available space */
+      flex: 2; /* Increased flex to make it bigger */
     }
 
     .quality-panel h2 {
@@ -494,7 +494,7 @@
         flex-direction: column;
         gap: 1rem;
         border: 1px solid var(--quality-border);
-        /* No margin-top here, as it's now part of the wrapper */
+        flex: 1; /* Reduced flex to make it smaller */
     }
 
     .s4-progress-panel h2 {
@@ -678,7 +678,7 @@
     // Access global variables provided by the Canvas environment
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; // Corrected initialization
 
     // Initialize Firebase and authenticate
     if (firebaseConfig) {
@@ -882,7 +882,7 @@
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
     const closeModalBtn = document.getElementById('closeModalBtn');
-    const modalSaveBtn = document.getElementById('modalSaveBtn');
+    const modalSaveBtn = document = document.getElementById('modalSaveBtn');
     const modalCancelBtn = document.getElementById('modalCancelBtn');
 
     let recognition;
@@ -902,7 +902,7 @@
     let currentInitialCustomerScenarioText = ""; // Stores just the initial complaint text
     let currentS4Phase = 'S1'; // Track current S4 phase
 
-    let customerPersona = "You are a Comcast customer with a billing inquiry. You are slightly frustrated but polite. Respond concisely.";
+    let customerPersona = "You are a Comcast customer with a billing inquiry. You are slightly frustrated but polite. Respond concisely. Ensure your responses have variance and do not sound robotic.";
     let qualityAssistantPersona = "You are an S4 Quality Assurance Specialist. Evaluate the agent's last response based on the S4 guidelines provided. Provide a score out of 100 and a brief comment. Focus on Start, Solve, Sell, Summarize, and Foundational Behaviors. Also, identify the current S4 phase (S1, S2, S3, or S4) the conversation is in based on the agent's last response and the overall flow.";
     let flowManagerPersona = "You are a Call Flow Manager AI. Your role is to guide the agent through the S4 call flow. Based on the conversation history and the current S4 phase, provide a subtle suggestion or prompt to help the agent progress or conclude the call. Your tone should be helpful and encouraging, not critical. Suggest the next logical S4 phase or a concluding action (e.g., 'summarize the call').";
 
@@ -1176,8 +1176,18 @@
 
       try {
         // --- Role-Play AI (Customer Response) ---
-        // The customer AI's prompt should be based on the current chatHistory
-        const customerPayload = { contents: chatHistory.concat([{ role: "user", parts: [{ text: text }] }]) }; // Add current agent message for customer AI context
+        // Construct customer payload with persona and initial complaint as system/user context
+        const customerPromptContent = [
+            { role: "system", parts: [{ text: customerPersona }] },
+            { role: "user", parts: [{ text: `The customer's initial complaint is: "${currentInitialCustomerScenarioText}".` }] }
+        ];
+        // Add recent chat history (last few turns)
+        customerPromptContent.push(...chatHistory.slice(-6)); // Limit history to last 6 turns for context
+        // Add the agent's current message
+        customerPromptContent.push({ role: "user", parts: [{ text: text }] });
+
+        const customerPayload = { contents: customerPromptContent };
+
         const customerRes = await fetch(GEMINI_API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1195,11 +1205,6 @@
         }
 
         // --- Quality AI Analysis ---
-        // For quality analysis, we need the agent's *last* message and the *customer's message immediately preceding it*.
-        // The agent's message is `text`.
-        // The customer's immediately preceding message is `chatHistory[chatHistory.length - 2]` (if history is long enough)
-        // Or `initialCustomerScenarioText` if this is the first agent message.
-
         let precedingCustomerMessageText = '';
         // Find the most recent 'model' message before the current agent's message in chatHistory
         for (let i = chatHistory.length - 1; i >= 0; i--) {
@@ -1275,6 +1280,7 @@
         
         addQualityFeedback(qualityFeedback.score, qualityFeedback.comment, qualityDetails);
         currentS4Phase = qualityFeedback.s4Phase; // Update current S4 phase based on quality AI
+        console.log("Quality AI returned S4 Phase:", currentS4Phase); // Log the phase returned by quality AI
         updateS4Progress(currentS4Phase);
 
         // --- Flow Management AI ---
@@ -1569,8 +1575,10 @@
                 s4Phases[key].classList.add('active');
                 foundActive = true;
             } else if (!foundActive) {
+                // This condition means 'key' is a phase *before* the current 'phase'
                 s4Phases[key].classList.add('completed');
             }
+            // If foundActive is true, and key is not 'phase', then it's a future phase, so leave it default (grey)
         }
     }
 
