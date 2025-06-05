@@ -1,0 +1,158 @@
+// This defines the scoring guidelines that will be used by the LLM.
+const SCORING_GUIDELINES_SUMMARY = `
+You are an expert Comcast Quality Assurance specialist. Your task is to analyze a given call transcript and score the agent's performance strictly according to the Comcast S4 Quality Training Material guidelines.
+
+Here are the scoring guidelines for each section (ME = Meets Expectations, HE = Highly Effective, BE = Below Expectations, N/A = Not Applicable):
+
+S1: START (Max 22 points)
+- 1. Greeting (Max 3 points): Agent greets clearly (Comcast Name, Agent First Name, offer assistance). BE=0 if incomplete/rushed.
+- 2. Reflect, Relate, Empathize (Max 15 points): Reflects call reason, empathizes with customer, assures action. BE=0 if vague, uses "trap" words, no ownership.
+- 3. Set Agenda / Auth / Plant Seed (Max 4 points): Sets agenda, authenticates caller, "plants seed" for account review (HE=4, ME=2). BE=0 if fails any.
+
+S2: SOLVE (Max 27 points)
+- 4. Obtain Info / Probe (Max 7 points): Asks effective questions, probes root causes (HE=7, ME=4). BE=0 if makes assumptions, no opportunity for customer to describe problem.
+- 5. Resolve / Address Issue(s) (Max 14 points): Explains problem cause, provides complete resolution, educates on prevention, resolves underlying issues (HE=14, ME=7). BE=0 if incomplete, insufficient info, no confirmation.
+- 6. Build Value / Enhance (Max 6 points): Attempts email capture AND builds value of EXISTING Comcast products/services/company. BE=0 if fails any.
+
+S3: SELL (Max 20 points) - ONLY APPLICABLE IF CUSTOMER IS NOT IRATE, AUTHENTICATED, AND HASN'T OPTED OUT OF SALES.
+- 7. Transition to Relevant Offer (Max 6 points): Transitions after resolving issue, uses bridging statements, probes for needs (HE=6, ME=3). BE=0 if transitions too early, no bridging.
+- 8. Present Offer (Max 6 points): Presents tailored recommendation, discusses benefits/value (HE=6, ME=3). BE=0 if only price, no benefits.
+- 9. Overcome Objections (Max 4 points): Acknowledges objection, attempts to overcome resistance (HE=4, ME=2). BE=0 if poor attempt, aggressive. N/A if customer accepts without resistance.
+- 10. Proactively Ask for the Sale (Max 4 points): Uses closing techniques (e.g., choice, assumptive, urgency) (ME=4). BE=0 if discusses solution but doesn't ask. N/A if customer pre-purchases or rejects after objection handling.
+
+S4: SUMMARIZE (Max 14 points)
+- 11. Summarize Actions (Max 7 points): Provides clear next steps, documents resolution, validates sales (ME=7). BE=0 if no recap or next steps.
+- 12. Close Contact (Max 4 points): Offers additional assistance, personalized closing, shows appreciation (ME=4). BE=0 if fails any.
+- 13. Documentation (Max 3 points): Documents caller, reason, resolution/actions (ME=3). BE=0 if missing required info. (Cannot be fully assessed from transcript alone).
+
+Behaviors (Max 17 points) - Assessed throughout the call:
+- Tone, Confidence & Clarity (Max 3 points): Professional, pleasant, clear, unrushed pace. BE=0 if fails.
+- Active Listening (Max 3 points): Verbal cues, avoids interruption, references customer info. BE=0 if fails.
+- Contact Management (Max 3 points): Minimizes dead air (<20s), manages holds (<60s) with explanation. BE=0 if fails.
+- Acknowledge / Take Responsibility (Max 4 points): Assures solution, positive language, avoids blame. BE=0 if fails.
+- Build Rapport / Demonstrate Concern (Max 4 points): Genuine interest, acknowledges feelings, personalizes interaction. BE=0 if fails.
+
+Critical Failure Policies:
+- Section Failures (Deduct points from specific section):
+    - Authentication (S1 Failure): Disclosing info to non-authorized user. Deducts all 22 points from S1.
+    - Account Actions (S2 Failure): Misinforming about charges, failing promises, not escalating supervisor call. Deducts all 27 points from S2.
+    - TPV Process (S4 Failure): Failure to attempt Third Party Verification where required. Deducts all 14 points from S4.
+- Auto-Fail Behaviors (Results in 0 overall score for the entire call):
+    - Rudeness (verbal): Rude, disrespectful, arguing, profanity, hanging up, refusing escalation/transfer.
+    - Call Avoidance: Failing to answer, personal calls/web surfing.
+    - Inappropriate Transfer: Blind transfer, advocating for customers to contact other departments.
+
+Return a JSON object with the following structure. Strictly adhere to this JSON format for parsing.
+{
+  "autoFailDetected": boolean,
+  "autoFailReason": "string (if auto-fail, otherwise empty)",
+  "sections": {
+    "s1": { "score": number, "max": number, "criteria": [ { "name": string, "awardedScore": number|string, "maxScore": number|string, "justification": string } ] },
+    "s2": { "score": number, "max": number, "criteria": [ { "name": string, "awardedScore": number|string, "maxScore": number|string, "justification": string } ] },
+    "s3": { "score": number, "max": number, "criteria": [ { "name": string, "awardedScore": number|string, "maxScore": number|string, "justification": string } ] },
+    "s4": { "score": number, "max": number, "criteria": [ { "name": string, "awardedScore": number|string, "maxScore": number|string, "justification": string } ] },
+    "behaviors": { "score": number, "max": number, "criteria": [ { "name": string, "awardedScore": number|string, "maxScore": number|string, "justification": string } ] }
+  }
+}
+`;
+
+// This function makes the API call to the Gemini model and processes the response.
+async function scoreCall(transcript, scoringGuidelinesSummary, env) {
+    try {
+        const prompt = `${scoringGuidelinesSummary}\n\nCall Transcript:\n\`\`\`\n${transcript}\n\`\`\``;
+        let chatHistory = [];
+        chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+        const payload = {
+            contents: chatHistory,
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "OBJECT",
+                    properties: {
+                        "autoFailDetected": { "type": "BOOLEAN" },
+                        "autoFailReason": { "type": "STRING" },
+                        "sections": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "s1": { "type": "OBJECT", "properties": { "score": { "type": "NUMBER" }, "max": { "type": "NUMBER" }, "criteria": { "type": "ARRAY", "items": { "type": "OBJECT", "properties": { "name": { "type": "STRING" }, "awardedScore": { "type": ["NUMBER", "STRING"] }, "maxScore": { "type": ["NUMBER", "STRING"] }, "justification": { "type": "STRING" } } } } } },
+                                "s2": { "type": "OBJECT", "properties": { "score": { "type": "NUMBER" }, "max": { "type": "NUMBER" }, "criteria": { "type": "ARRAY", "items": { "type": "OBJECT", "properties": { "name": { "type": "STRING" }, "awardedScore": { "type": ["NUMBER", "STRING"] }, "maxScore": { "type": ["NUMBER", "STRING"] }, "justification": { "type": "STRING" } } } } } },
+                                "s3": { "type": "OBJECT", "properties": { "score": { "type": "NUMBER" }, "max": { "type": "NUMBER" }, "criteria": { "type": "ARRAY", "items": { "type": "OBJECT", "properties": { "name": { "type": "STRING" }, "awardedScore": { "type": ["NUMBER", "STRING"] }, "maxScore": { "type": ["NUMBER", "STRING"] }, "justification": { "type": "STRING" } } } } } },
+                                "s4": { "type": "OBJECT", "properties": { "score": { "type": "NUMBER" }, "max": { "type": "NUMBER" }, "criteria": { "type": "ARRAY", "items": { "type": "OBJECT", "properties": { "name": { "type": "STRING" }, "awardedScore": { "type": ["NUMBER", "STRING"] }, "maxScore": { "type": ["NUMBER", "STRING"] }, "justification": { "type": "STRING" } } } } } },
+                                "behaviors": { "type": "OBJECT", "properties": { "score": { "type": "NUMBER" }, "max": { "type": "NUMBER" }, "criteria": { "type": "ARRAY", "items": { "type": "OBJECT", "properties": { "name": { "type": "STRING" }, "awardedScore": { "type": ["NUMBER", "STRING"] }, "maxScore": { "type": ["NUMBER", "STRING"] }, "justification": { "type": "STRING" } } } } } }
+                            }
+                        }
+                    }
+                }
+            };
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${env.GEMINI_API_KEY}`;
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+
+            if (result.candidates && result.candidates.length > 0 &&
+                result.candidates[0].content && result.candidates[0].content.parts &&
+                result.candidates[0].content.parts.length > 0) {
+
+                const jsonString = result.candidates[0].content.parts[0].text;
+                const parsedResults = JSON.parse(jsonString);
+
+                let totalScore = 0;
+                if (parsedResults.autoFailDetected) {
+                    totalScore = 0;
+                } else {
+                    totalScore = parsedResults.sections.s1.score + parsedResults.sections.s2.score +
+                                 parsedResults.sections.s3.score + parsedResults.sections.s4.score +
+                                 parsedResults.sections.behaviors.score;
+                }
+                parsedResults.totalScore = totalScore;
+                return parsedResults;
+
+            } else {
+                console.error('LLM response structure unexpected:', result);
+                return {
+                    autoFailDetected: false,
+                    autoFailReason: 'LLM returned no content or malformed content.',
+                    totalScore: 0,
+                    sections: {}
+                };
+            }
+        } catch (error) {
+            console.error('Error scoring call with LLM:', error);
+            return {
+                autoFailDetected: false,
+                autoFailReason: `API call failed: ${error.message}`,
+                totalScore: 0,
+                sections: {}
+            };
+        }
+}
+
+// Cloudflare Worker entry point
+export default {
+    async fetch(request, env, ctx) {
+        if (request.method !== 'POST') {
+            return new Response('Method Not Allowed', { status: 405 });
+        }
+
+        const { transcript } = await request.json();
+
+        if (!transcript) {
+            return new Response(JSON.stringify({ error: 'Transcript is required' }), {
+                headers: { 'Content-Type': 'application/json' },
+                status: 400
+            });
+        }
+
+        const scoringResult = await scoreCall(transcript, SCORING_GUIDELINES_SUMMARY, env);
+
+        return new Response(JSON.stringify(scoringResult), {
+            headers: { 'Content-Type': 'application/json' },
+            status: 200
+        });
+    },
+};
