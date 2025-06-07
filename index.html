@@ -314,19 +314,12 @@
         </div>
     </div>
 
-    <!-- Enhanced Features Scripts -->
     <script type="module">
+        // Import enhanced features
         import { CallFlowManager } from './src/callFlowManager.js';
         import { SystemNavigationManager } from './src/systemNavigation.js';
         import { RealTimeQualityFeedback } from './src/realTimeQualityFeedback.js';
         
-        // Make classes globally available
-        window.CallFlowManager = CallFlowManager;
-        window.SystemNavigationManager = SystemNavigationManager;
-        window.RealTimeQualityFeedback = RealTimeQualityFeedback;
-    </script>
-    
-    <script type="module">
         // --- DATA ---
         const complaints = {
             internet: [{id: "int_001",type: "Service Interruption",scenario: "Internet service has been intermittent for the past 24 hours, affecting business operations",initialComplaint: { "en-US": "My business internet keeps dropping every hour! We've lost thousands in sales because our payment system is down. This is completely unacceptable for a business account!", "es-ES": "¡El internet de mi negocio se cae cada hora! Hemos perdido miles en ventas porque nuestro sistema de pago no funciona. ¡Esto es completamente inaceptable para una cuenta de negocios!"}, customerName: "Maria Garcia",difficulty: "high", customerType: "Frustrated", topic: "Internet Service"},{id: "int_002",type: "Speed Issues",scenario: "Business customer reporting significantly slower speeds than promised",initialComplaint: { "en-US": "We're only getting 50Mbps when we're paying for 300Mbps. Our video conferences with clients keep freezing!", "es-ES": "Solo estamos recibiendo 50Mbps cuando pagamos por 300Mbps. ¡Nuestras videoconferencias con clientes se congelan!"}, customerName: "John Smith",difficulty: "medium", customerType: "Inquiry", topic: "Internet Speed"}],
