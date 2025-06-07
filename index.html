@@ -315,10 +315,16 @@
     </div>
 
     <!-- Enhanced Features Scripts -->
-    <script type="module" src="src/speechService.js"></script>
-    <script type="module" src="src/callFlowManager.js"></script>
-    <script type="module" src="src/systemNavigation.js"></script>
-    <script type="module" src="src/realTimeQualityFeedback.js"></script>
+    <script type="module">
+        import { CallFlowManager } from './src/callFlowManager.js';
+        import { SystemNavigationManager } from './src/systemNavigation.js';
+        import { RealTimeQualityFeedback } from './src/realTimeQualityFeedback.js';
+        
+        // Make classes globally available
+        window.CallFlowManager = CallFlowManager;
+        window.SystemNavigationManager = SystemNavigationManager;
+        window.RealTimeQualityFeedback = RealTimeQualityFeedback;
+    </script>
     
     <script type="module">
         // --- DATA ---
