@@ -454,7 +454,12 @@
                         this.startNewCall();
                     } catch (error) {
                         console.error('Error in startNewCall:', error);
-                        alert('Error starting new call: ' + error.message);
+                        const errorMsg = `Error starting new call: ${error.message}\n\nPlease check the browser console for more details.`;
+                        alert(errorMsg);
+                        // Also display error in quality panel
+                        if (this.qualityPanel) {
+                            this.qualityPanel.innerHTML = `<div class="text-red-500 text-center pt-8">Error: ${error.message}</div>`;
+                        }
                     }
                 });
                 this.closeReportBtn.addEventListener('click', () => this.reportModal.classList.add('hidden'));

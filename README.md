@@ -4,6 +4,7 @@ An AI-powered call simulation training tool with speech recognition, text-to-spe
 
 ## Features
 
+### Core Functionality
 - **Speech Recognition**: Real-time voice input with automatic timeout
 - **Text-to-Speech**: Seamless voice output for AI responses
 - **Bilingual Support**: Full English and Spanish language support
@@ -11,25 +12,67 @@ An AI-powered call simulation training tool with speech recognition, text-to-spe
 - **AI Customer Simulation**: Realistic customer personas with various complaint scenarios
 - **Quality Insights**: Performance analytics and improvement recommendations
 
+### Enhanced Features
+- **🔧 ITG (Issue Type Guide)**: 7-category issue classification system
+  - Billing, Technical, Account, Service, Complaint, Sales, General
+  - Professional modal dialogs with detailed descriptions
+  - Streamlined call routing and categorization
+
+- **📋 LLQ (Line Level Qualification)**: Advanced troubleshooting system
+  - Step-by-step documentation workflow
+  - Manual step input with "Add Step" functionality
+  - Individual step deletion and management
+  - Save troubleshooting documentation for call records
+
+- **📊 Call Flow Management**: Comprehensive call tracking
+  - 10-interaction limit with progress monitoring
+  - Real-time call progress indicators
+  - Automatic call completion handling
+  - Quality score tracking throughout the call
+
+- **🎯 Real-time Quality Feedback**: Live analysis during calls
+  - Instant feedback on agent performance
+  - Quality insights and recommendations
+  - Performance trend tracking
+  - Visual score indicators with detailed breakdowns
+
+- **🛠️ System Navigation**: Professional user interface
+  - Modal-based navigation system
+  - Responsive design with modern styling
+  - Intuitive button layout and accessibility
+  - Seamless integration with existing features
+
 ## Project Structure
 
 ```
 MockCall/
-├── src/                    # Source modules
-│   ├── complaints.js       # Customer complaint scenarios database
-│   ├── speechService.js    # Speech recognition and TTS service
-│   ├── qualityScoring.js   # Quality assessment and scoring system
-│   └── messageHandler.js   # Message processing and validation
-├── tests/                  # Test files
-│   ├── setup.js           # Test environment setup
-│   ├── complaints.test.js  # Complaints database tests
-│   ├── speechService.test.js # Speech service tests
-│   ├── qualityScoring.test.js # Quality scoring tests
-│   └── messageHandler.test.js # Message handler tests
-├── index.html             # Main application file
-├── Complains.js          # Legacy complaints file
-├── Qualitys4.html        # Quality guidelines
-└── package.json          # Project configuration
+├── src/                           # Source modules
+│   ├── complaints.js              # Customer complaint scenarios database
+│   ├── speechService.js           # Speech recognition and TTS service
+│   ├── qualityScoring.js          # Quality assessment and scoring system
+│   ├── messageHandler.js          # Message processing and validation
+│   ├── callFlowManager.js         # Call flow management and progress tracking
+│   ├── systemNavigation.js       # ITG and LLQ system navigation
+│   ├── realTimeQualityFeedback.js # Live quality analysis and feedback
+│   └── s4QualityAnalyzer.js       # S4 methodology quality analyzer
+├── tests/                         # Test files
+│   ├── setup.js                   # Test environment setup
+│   ├── complaints.test.js         # Complaints database tests
+│   ├── speechService.test.js      # Speech service tests
+│   ├── qualityScoring.test.js     # Quality scoring tests
+│   ├── messageHandler.test.js     # Message handler tests
+│   ├── callFlowManager.test.js    # Call flow management tests
+│   ├── systemNavigation.test.js   # System navigation tests
+│   ├── realTimeQualityFeedback.test.js # Quality feedback tests
+│   └── s4QualityAnalyzer.test.js  # S4 analyzer tests
+├── css/                           # Stylesheets
+│   └── enhanced-features.css      # Enhanced features styling
+├── index.html                     # Main application file
+├── test-modules.html              # Module testing and debugging page
+├── Complains.js                   # Legacy complaints file
+├── Qualitys4.html                 # Quality guidelines
+├── CHANGELOG.md                   # Project changelog
+└── package.json                   # Project configuration
 ```
 
 ## Testing
@@ -52,11 +95,14 @@ npm run test:coverage
 ### Test Coverage
 
 Current test coverage:
-- **Overall**: 93.69% statement coverage
+- **Overall**: 77.12% statement coverage (298 tests passing)
 - **Complaints Module**: 100% coverage
 - **Message Handler**: 100% coverage  
 - **Quality Scoring**: 100% coverage
 - **Speech Service**: 81.48% coverage
+- **Call Flow Manager**: Comprehensive test coverage
+- **System Navigation**: Full feature testing
+- **Quality Feedback**: Real-time analysis testing
 
 ### Test Structure
 
@@ -121,6 +167,43 @@ The quality scoring system is based on Comcast S4 methodology:
 - Automated insights and recommendations
 - Visual score indicators with emojis
 - Detailed feedback for improvement
+
+## Enhanced Features Usage
+
+### ITG (Issue Type Guide) System
+1. Click the **🔧** button in the top navigation
+2. Select from 7 issue categories:
+   - **Billing**: Payment, charges, billing disputes
+   - **Technical**: Service outages, equipment issues
+   - **Account**: Account changes, security, access
+   - **Service**: Service requests, installations
+   - **Complaint**: Service complaints, escalations
+   - **Sales**: New services, upgrades, promotions
+   - **General**: General inquiries, information requests
+3. Use the categorization to route calls appropriately
+
+### LLQ (Line Level Qualification) Troubleshooting
+1. Click the **📋** button to open troubleshooting documentation
+2. Add troubleshooting steps manually:
+   - Type step description in the input field
+   - Click "Add Step" to add to the list
+   - Steps are automatically numbered
+3. Manage steps:
+   - Delete individual steps using the ❌ button
+   - Steps renumber automatically
+4. Save documentation for call records
+
+### Call Flow Management
+- **Progress Tracking**: Monitor call progress with visual indicators
+- **Interaction Limits**: Automatic handling of 10-interaction limit
+- **Quality Monitoring**: Real-time quality score tracking
+- **Call Completion**: Automatic call wrap-up and reporting
+
+### Real-time Quality Feedback
+- **Live Analysis**: Instant feedback during conversations
+- **Performance Insights**: Detailed recommendations for improvement
+- **Score Tracking**: Visual indicators with emoji-based scoring
+- **Trend Analysis**: Performance tracking over multiple interactions
 
 ## Development
 
