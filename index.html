@@ -10,6 +10,7 @@
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/enhanced-features.css">
     <style>
         :root {
             --bg-main: #0a0a0a;
@@ -127,8 +128,24 @@
 
         <!-- Header/Settings -->
         <header class="flex items-center justify-between p-3 bg-white border-b border-gray-200 shadow-sm bg-opacity-10 backdrop-filter backdrop-blur-lg">
-            <h1 class="text-xl font-bold text-gray-200">AI Call Simulator</h1>
             <div class="flex items-center space-x-4">
+                <h1 class="text-xl font-bold text-gray-200">AI Call Simulator</h1>
+                <!-- Call Progress Indicator -->
+                <div id="call-status" class="call-progress hidden">
+                    <span class="interaction-count">0/10</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <!-- System Navigation Buttons -->
+                <button id="open-itg-btn" class="p-2 bg-gray-700 rounded-full text-white hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" title="ITG System">
+                    🔧
+                </button>
+                <button id="open-troubleshooting-btn" class="p-2 bg-gray-700 rounded-full text-white hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" title="Troubleshooting">
+                    📋
+                </button>
                 <!-- Settings and Persona Buttons -->
                 <button id="open-settings-btn" class="p-2 bg-gray-700 rounded-full text-white hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" title="Settings">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 4.095a.75.75 0 01-.137.935l-1.39 1.39a.75.75 0 00-.22.53v.528c0 .198-.079.388-.22.53l-1.39 1.39a.75.75 0 01-.935.137l-.528-.22a.75.75 0 00-.53.22l-1.39 1.39a.75.75 0 01-.137.935l-.22.528a.75.75 0 00.22.53l1.39 1.39a.75.75 0 01.137.935l.528.22a.75.75 0 00.53-.22l1.39-1.39a.75.75 0 01.22-.53v-.528c0-.198.079-.388.22-.53l1.39-1.39a.75.75 0 01.935-.137l.528.22a.75.75 0 00.53-.22l1.39-1.39a.75.75 0 01.137-.935l.22-.528a.75.75 0 00-.22-.53l-1.39-1.39a.75.75 0 01-.137-.935l-.528-.22a.75.75 0 00-.53-.22zm-3 4.25a.75.75 0 100 1.5.75.75 0 000-1.5zM12 9a.75.75 0 100 1.5.75.75 0 000-1.5zM15 9a.75.75 0 100 1.5.75.75 0 000-1.5z" clip-rule="evenodd" /></svg>
@@ -297,6 +314,12 @@
         </div>
     </div>
 
+    <!-- Enhanced Features Scripts -->
+    <script type="module" src="src/speechService.js"></script>
+    <script type="module" src="src/callFlowManager.js"></script>
+    <script type="module" src="src/systemNavigation.js"></script>
+    <script type="module" src="src/realTimeQualityFeedback.js"></script>
+    
     <script type="module">
         // --- DATA ---
         const complaints = {
@@ -376,6 +399,9 @@
                 this.personaModal = document.getElementById('persona-modal');
                 this.closePersonaBtn = document.getElementById('close-persona-btn');
 
+                // Enhanced Features DOM Elements
+                this.openItgBtn = document.getElementById('open-itg-btn');
+                this.openTroubleshootingBtn = document.getElementById('open-troubleshooting-btn');
 
                 // State
                 this.state = {
@@ -401,6 +427,10 @@
                 );
                 
                 this.geminiAPI = new GeminiAPIService();
+                
+                // Enhanced Features
+                this.callFlowManager = new CallFlowManager(null, this.speechService);
+                this.systemNavigation = new SystemNavigationManager();
 
                 this.bindEventListeners();
                 this.startNewCall();
@@ -426,6 +456,10 @@
                 this.closeSettingsBtn.addEventListener('click', () => this.settingsModal.classList.add('hidden'));
                 this.openPersonaBtn.addEventListener('click', () => this.personaModal.classList.remove('hidden'));
                 this.closePersonaBtn.addEventListener('click', () => this.personaModal.classList.add('hidden'));
+                
+                // Enhanced Features event listeners
+                this.openItgBtn.addEventListener('click', () => this.systemNavigation.showITGSelection());
+                this.openTroubleshootingBtn.addEventListener('click', () => this.systemNavigation.showTroubleshootingForm());
             }
 
             startNewCall() {
@@ -442,6 +476,10 @@
                 this.surveySection.classList.add('hidden');
                 this.messageInput.disabled = false;
                 this.micBtn.disabled = false;
+                
+                // Initialize call flow manager
+                this.callFlowManager.startNewCall();
+                this.updateCallProgress();
                 
                 // Get settings
                 const lang = this.langSelect.value;
@@ -535,6 +573,8 @@
                 // So, only increment turnCount if the chat history indicates an interaction is actually happening
                 if (this.state.fullConversationForReport.length > 1) { // Agent's first message + Customer's first message = 2 entries
                     this.state.turnCount++;
+                    this.callFlowManager.recordInteraction();
+                    this.updateCallProgress();
                 }
                 
                 if (this.state.turnCount > 0) { // Only clear "Waiting for first interaction" after first proper turn
@@ -566,8 +606,8 @@
                 // Also handles the initial flow after customer's first response
                 this.speechService.startRecognition();
 
-                // Check for call end condition
-                if (this.state.turnCount >= 6 + Math.floor(Math.random() * 5)) { // 6-10 turns
+                // Check for call end condition using call flow manager
+                if (this.callFlowManager.shouldEndCall()) {
                     this.endCall();
                 }
             }
@@ -840,6 +880,33 @@ ${fullTranscript}
                  link.download = `CallReport_${new Date().toISOString()}.txt`;
                  link.click();
                  URL.revokeObjectURL(link.href);
+            }
+
+            updateCallProgress() {
+                const callStatus = document.getElementById('call-status');
+                const interactionCount = callStatus.querySelector('.interaction-count');
+                const progressFill = callStatus.querySelector('.progress-fill');
+                
+                if (this.state.callInProgress) {
+                    callStatus.classList.remove('hidden');
+                    const currentCount = this.callFlowManager.getInteractionCount();
+                    const maxCount = this.callFlowManager.getMaxInteractions();
+                    const percentage = (currentCount / maxCount) * 100;
+                    
+                    interactionCount.textContent = `${currentCount}/${maxCount}`;
+                    progressFill.style.width = `${percentage}%`;
+                    
+                    // Change color based on progress
+                    if (percentage >= 80) {
+                        progressFill.style.backgroundColor = '#ef4444'; // Red
+                    } else if (percentage >= 60) {
+                        progressFill.style.backgroundColor = '#f59e0b'; // Amber
+                    } else {
+                        progressFill.style.backgroundColor = '#10b981'; // Green
+                    }
+                } else {
+                    callStatus.classList.add('hidden');
+                }
             }
         }
 
