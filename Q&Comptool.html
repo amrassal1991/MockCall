@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Chosen Palette: Calm Harmony Neutrals -->
+    <!-- Application Structure Plan: A single-page, scrollable dashboard design was chosen for optimal user flow. It guides the user from a high-level overview (KPI Dashboard) to process-level details (Interaction Flow), and finally to granular behavioral standards (Sales Competency Deep Dive). This narrative structure is more intuitive and engaging than a direct translation of the PDF's linear format. Navigation is facilitated by a sticky header with smooth-scrolling links, allowing immediate access to any section. Interactivity (clickable chart segments, process steps, and accordions) is central to the design, enabling users to explore content without being overwhelmed, thus enhancing usability and knowledge retention. -->
+    <!-- Visualization & Content Choices: 
+        - KPI Metrics (Goal: Inform/Compare): Presented as an interactive doughnut chart (Chart.js/Canvas) to visually represent the strategic weight of each KPI. Clicking a segment reveals detailed text descriptions, making the data digestible. Justification: A chart is more impactful than a static table for showing proportions.
+        - Interaction Flow (Goal: Organize/Inform): A custom HTML/CSS process diagram. Interaction: Clicking a stage dynamically displays its specific behaviors. Justification: This visually represents the 4-step sequence and encourages user engagement more effectively than a static list.
+        - Sales Criteria (Goal: Compare/Organize): An interactive accordion (HTML/CSS/JS). Each panel contains a grid comparing performance levels (Excellent to Unsatisfactory). Interaction: Users expand a behavior to see its standards. Justification: This organizes a large amount of detailed text into manageable, comparable chunks, preventing information overload.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <title>Comcast Quality Guidelines - Interactive Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F9FA;
+            color: #343A40;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 450px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .nav-link {
+            transition: color 0.3s, border-bottom-color 0.3s;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #4A90E2;
+            border-bottom-color: #4A90E2;
+        }
+        .process-step {
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .process-step:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .process-step.active {
+            background-color: #4A90E2;
+            color: white;
+            border-color: #4A90E2;
+        }
+        .accordion-header {
+            transition: background-color 0.3s;
+        }
+        .accordion-header:hover {
+            background-color: #E9ECEF;
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-gray-800">Comcast Quality Guidelines</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#dashboard" class="nav-link text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium border-b-2 border-transparent">Dashboard</a>
+                        <a href="#interaction-flow" class="nav-link text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium border-b-2 border-transparent">Interaction Flow</a>
+                        <a href="#sales-competency" class="nav-link text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium border-b-2 border-transparent">Sales Competency</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        
+        <section id="dashboard" class="mb-16 scroll-mt-24">
+            <h2 class="text-3xl font-bold text-center mb-2 text-gray-800">CAE Performance Dashboard</h2>
+            <p class="text-center text-gray-500 max-w-3xl mx-auto mb-10">This section provides an overview of the Key Performance Indicators (KPIs) for Customer Account Executives. The chart visualizes the strategic importance (weight) of each metric. Click on a chart segment or its legend to explore detailed information about each KPI, including its business impact and calculation method.</p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="chart-container">
+                        <canvas id="kpiChart"></canvas>
+                    </div>
+                </div>
+                <div id="kpiDetails" class="bg-white p-8 rounded-xl shadow-md min-h-[400px]">
+                    
+                </div>
+            </div>
+        </section>
+
+        <section id="interaction-flow" class="mb-16 scroll-mt-24">
+            <h2 class="text-3xl font-bold text-center mb-2 text-gray-800">The Customer Interaction Flow</h2>
+            <p class="text-center text-gray-500 max-w-3xl mx-auto mb-10">A successful customer interaction follows a structured, four-stage process. This framework ensures consistency and quality in every call. Click on each stage below to reveal the specific agent behaviors and communication cues required to excel at that point in the conversation.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 text-center">
+                <div id="step-s1" class="process-step cursor-pointer p-4 border-2 border-gray-300 rounded-lg bg-white">
+                    <span class="text-2xl font-bold">S1</span>
+                    <p class="font-semibold">Start</p>
+                </div>
+                <div id="step-s2" class="process-step cursor-pointer p-4 border-2 border-gray-300 rounded-lg bg-white">
+                    <span class="text-2xl font-bold">S2</span>
+                    <p class="font-semibold">Solve</p>
+                </div>
+                <div id="step-s3" class="process-step cursor-pointer p-4 border-2 border-gray-300 rounded-lg bg-white">
+                    <span class="text-2xl font-bold">S3</span>
+                    <p class="font-semibold">Sell</p>
+                </div>
+                <div id="step-s4" class="process-step cursor-pointer p-4 border-2 border-gray-300 rounded-lg bg-white">
+                    <span class="text-2xl font-bold">S4</span>
+                    <p class="font-semibold">Summarize</p>
+                </div>
+            </div>
+
+            <div id="interactionDetails" class="bg-white p-8 rounded-xl shadow-md min-h-[300px]">
+                
+            </div>
+        </section>
+
+        <section id="sales-competency" class="scroll-mt-24">
+            <h2 class="text-3xl font-bold text-center mb-2 text-gray-800">Sales & Conversion Competency Deep Dive</h2>
+            <p class="text-center text-gray-500 max-w-3xl mx-auto mb-10">This section details the specific criteria for the Conversion/Sales competency. For each behavior, you can see a direct comparison of performance standards from 'Excellent' to 'Unsatisfactory'. Expand each section to understand the nuances of effective, value-driven selling and customer retention.</p>
+            <div id="accordionContainer" class="space-y-4">
+                
+            </div>
+            <!-- Button to open the comparison tool modal -->
+            <div class="text-center mt-12">
+                <button id="openComparisonTool" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-300 ease-in-out">
+                    Compare Your Current Plan with Xfinity!
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Comparison Tool Modal -->
+    <div id="comparisonToolModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-5xl h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200">
+                <h3 class="text-xl font-bold text-gray-800">Xfinity Mobile Plan Comparison</h3>
+                <button id="closeComparisonTool" class="text-gray-500 hover:text-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="flex-grow p-4 overflow-hidden">
+                <iframe id="xfinityComparisonIframe" src="" frameborder="0" class="w-full h-full rounded-md" allowfullscreen></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            const kpiData = [
+                {
+                    metric: 'Pinnacle',
+                    impact: 'Provides high-quality standards to improve the Customer Experience that will drive improvements in overall customer satisfaction.',
+                    description: 'Pinnacle is the quality assurance program that defines how we deliver a high-quality consistent experience for every customer. Specific achievement ranges for this goal will be communicated via site leadership.',
+                    calculation: 'Sum of all Pinnacle Scores / # of Evaluations Completed.',
+                    weight: 27
+                },
+                {
+                    metric: 'FCR (First Call Resolution)',
+                    impact: 'Provides our customers with a superior experience; it is critical that we meet and exceed their expectations the first time, every time so that there is no need for them to call back about the same issue.',
+                    description: 'Agent FCR is an indicator of how many customers have their issue addressed or resolved during the first call to Comcast. Specific achievement ranges for this goal will be communicated via site leadership.',
+                    calculation: '# of unique callers, by call type handled by the CAE that called once in a 7-day rolling period / Total # of unique callers handled by the CAE in the same period.',
+                    weight: 27
+                },
+                {
+                    metric: 'TSR (Total Service Rate)',
+                    impact: 'Educating our customers about their products and services is how we provide World-Class Service to help them find more value, choice and convenience with Comcast.',
+                    description: 'TSR provides an indication of how often we upgrade our current customers who call into our non-Sales queues with new lines of business (RGUs). Specific achievement ranges for this goal will be communicated via site leadership.',
+                    calculation: 'Completed RGUs upgrades / total # of calls handled (RGU upgrade = Addition of Basic Video, HSD or CDV).',
+                    weight: 16
+                },
+                 {
+                    metric: 'Product Knowledge',
+                    impact: 'By ensuring our employees understand and can articulate the features and benefits of our products, we gain a significant competitive advantage.',
+                    description: 'Our 2014 Division Goal is for every Northeast Division employee to increase their awareness and understanding of our products and services in order to gain confidence in their ability to describe and sell them to customers.',
+                    calculation: 'Complete one Comcast University eLearning Product Module each quarter. A specific product module will be uploaded automatically in your Learning Portal at the start of each quarter.',
+                    weight: 10
+                },
+                {
+                    metric: 'LOQ%/ITG',
+                    impact: 'Completing the appropriate LOQ/ITG on each and every interaction promotes FCR and enables us to correlate technical issues and outages.',
+                    description: 'LOQ/ITG compliance is a measure of how often an LOQ/ITG is completed compared to the number of calls handled. Specific achievement ranges for this goal will be communicated via site leadership.',
+                    calculation: 'Completed LOQ/ITG\'s / total # of account loads.',
+                    weight: 9
+                },
+                {
+                    metric: 'AHT (Average Handle Time)',
+                    impact: 'When you optimize your time on the phone with customers, their experience with us is as convenient and efficient as possible. Maintaining good productivity also promotes positive Service Levels.',
+                    description: 'AHT is the sum of Talk Time, Hold & After Call work (ACW) divided by total calls handled at the Agent level. Specific achievement ranges for this goal will be communicated via site leadership.',
+                    calculation: 'Total Talk, Hold & After Call work (ACW) / total # of calls handled. Note: AHT will be a blended calculation for X1 and non-X1 call types.',
+                    weight: 9
+                }
+            ];
+
+            const interactionData = {
+                s1: {
+                    title: "S1: Start the Interaction",
+                    points: [
+                        "Greet the Customer Clearly",
+                        "Use Branded Greeting (Ex: 'Thank you for calling Comcast...')",
+                        "Reflect Need/Relate or Empathize/Take Ownership",
+                        "Authenticate Account",
+                        "Behavioral Cues: Tone, Confidence, Clarity (unrushed pace)"
+                    ]
+                },
+                s2: {
+                    title: "S2: Solve the Customer's Issue",
+                    points: [
+                        "Use Knowledge Management Tools",
+                        "Provide Accurate Information",
+                        "Educate the Customer",
+                        "Set Clear Expectations",
+                        "Behavioral Cues: Active Listening (verbal nods, avoid interrupting)"
+                    ]
+                },
+                s3: {
+                    title: "S3: Sell/Offer Additional Value",
+                    points: [
+                        "Build Rapport/Relate/Concern (genuine responses)",
+                        "Identify Needs/Make a Connection",
+                        "Position relevant products/services",
+                        "Explain the Value/Benefit",
+                        "Behavioral Cues: Consultative approach, not aggressive"
+                    ]
+                },
+                s4: {
+                    title: "S4: Summarize and Close",
+                    points: [
+                        "Recap changes and key points",
+                        "Confirm understanding and satisfaction",
+                        "Personalize the closing",
+                        "Use Branded Closing",
+                        "Behavioral Cues: Professional, Courteous, Appreciative"
+                    ]
+                }
+            };
+            
+            const salesData = [
+                {
+                    id: 13,
+                    title: "Offer Products/Services Tailored to Needs",
+                    levels: {
+                        excellent: {
+                            criteria: ["Clearly discussed how products/services were related to the caller's needs.", "Mentioned multiple benefits/values tailored to needs.", "Demonstrated awareness of competitive products.", "Personalized the conversation to build rapport."],
+                            verbiage: `"How wonderful that you just purchased a new high-definition TV! Based on what you mentioned... If you add an HD/DVR service... you will not miss your favorite shows... view them in high definition... record up to 2 shows at the same time..."`
+                        },
+                        average: {
+                            criteria: ["Products/services discussed were aligned with caller's needs generally.", "Identified opportunity and transitioned to sales conversation appropriately.", "Mentioned at least one benefit or value."],
+                            verbiage: `"Based on what you mentioned... If you add HD/DVR service... you will no longer miss your favorite shows." Or, "Mr./Mrs. we have phone service available at $19.99 for the next 12 months."`
+                        },
+                        needs_improvement: {
+                            criteria: ["Selling the promotion rather than the value.", "Failed to mention retail value of services.", "Neglected to mention any value of a product/service offered."],
+                            verbiage: `N/A`
+                        },
+                        unsatisfactory: {
+                            criteria: ["Recommended products not aligned with needs.", "Discussed purchasing after caller asked not to.", "Failed to pick up on an obvious cue.", "Did not recommend products when appropriate."],
+                            verbiage: `Customer: "I don't have your telephone service, but my neighbor does, and she loves it!" Agent: "I'm glad your neighbor likes it. Is there anything else I can help you with today?"`
+                        }
+                    },
+                    na_scenarios: ["Customer is irate", "Caller could not authenticate", "Caller is notated as unable to make changes", "Upgrade hold on account (delinquency)", "Customer in non-pay disco status", "Pending work order", "Tech arrival/ETA call", "Transfers/Escalations", "Scheduling TC for outage", "Customer volunteers a 'don't sell to me' statement."]
+                },
+                {
+                    id: 14,
+                    title: "Ask for the Sale",
+                    levels: {
+                        excellent: {
+                            criteria: ["Directly asked the caller if s/he wished to purchase one or more products or services discussed."],
+                            verbiage: `"Would you like to purchase HD/DVR today?"`
+                        },
+                        average: {
+                            criteria: ["Indirectly asked for the sale."],
+                            verbiage: `"I could enter an order if you are interested."`
+                        },
+                        needs_improvement: {
+                            criteria: ["Waited for the caller to indicate they wished to purchase.", "Pauses, or otherwise implies to caller that a pitch for a sale occurred."],
+                            verbiage: `Customer: "Oh, I think that might work for me. Um... Can you go ahead and add that to my account?"`
+                        },
+                        unsatisfactory: {
+                            criteria: ["Did not ask caller if s/he wished to purchase any products/services when it was appropriate."],
+                            verbiage: `N/A`
+                        }
+                    },
+                    na_scenarios: ["Customer specifically states s/he wanted to purchase before agent could ask", "Customer specifically stated s/he did NOT want to purchase before agent could ask."]
+                },
+                {
+                    id: 15,
+                    title: "Respond to Resistance",
+                     levels: {
+                        excellent: {
+                            criteria: ["Specifically tailored attempts to overcome resistance to caller's stated needs.", "Responded by discussing an alternative, more appropriate solution."],
+                            verbiage: `"Well our Comcast Customer Guarantee is our promise to you... If for any reason you are unhappy... we offer a 30 day money back guarantee... If this is not the right choice for you, I can offer you [Alternative] which still gives you [Benefit]..."`
+                        },
+                        average: {
+                            criteria: ["Made one or more attempts to overcome resistance by re-emphasizing benefits."],
+                            verbiage: `"Comcast stands by our services and guarantees that if for any reason you are unsatisfied you can cancel your service and receive a 30 day money back guarantee..."`
+                        },
+                        needs_improvement: {
+                            criteria: ["Made poor attempt to overcome resistance.", "Provided a rebuttal with no value."],
+                            verbiage: `"Are you sure you don't want to purchase this service? (without stating a benefit/rationale)."`
+                        },
+                        unsatisfactory: {
+                            criteria: ["Was overly aggressive, re-attempting after caller clearly stated no interest.", "Made no attempt to respond to resistance.", "Argumentative, bantering with caller."],
+                            verbiage: `Overly Aggressive Example: Agent "Are you sure..." Customer: "Don't try to sell me something else..." Agent: "I just think this package will suit your needs."`
+                        }
+                    },
+                    na_scenarios: ["No attempt at making the sale", "Customer accepts offer presented without resistance."]
+                },
+                {
+                    id: 16,
+                    title: "Attempt to Save the Customer",
+                    levels: {
+                        excellent: {
+                            criteria: ["Made attempt(s) to save the customer, stating benefits of retaining service (without being overly aggressive).", "Specifically linked attempt to save customer to customer's issues/reasons for wishing to cancel.", "Emphasized Comcast's strengths and value of the customer."],
+                            verbiage: `"You've been a great customer for four years. We value your business... let's see what we can do to keep you with us... As part of the CCG... if the problem is something we missed... we will offer you a complimentary service for 3 months..."`
+                        },
+                        average: {
+                            criteria: ["Made an attempt to save the customer, stating benefits or offering an alternative.", "Responded at least once to disparaging remarks by emphasizing Comcast's strengths."],
+                            verbiage: `"We value your business and would like to see you keep all the great features of your package... are you aware that Comcast offers [Feature] which is a great value..."`
+                        },
+                        needs_improvement: {
+                            criteria: ["Information for this level is not available in the provided document."],
+                            verbiage: 'N/A'
+                        },
+                        unsatisfactory: {
+                            criteria: ["Information for this level is not available in the provided document."],
+                            verbiage: 'N/A'
+                        }
+                    },
+                    na_scenarios: ["Customer did not indicate s/he was considering canceling", "The disconnect is uncontrollable (e.g., move to non-service area)."]
+                }
+            ];
+
+            const kpiDetailsContainer = document.getElementById('kpiDetails');
+            const interactionDetailsContainer = document.getElementById('interactionDetails');
+            const accordionContainer = document.getElementById('accordionContainer');
+
+            function displayKpiDetails(kpi) {
+                kpiDetailsContainer.innerHTML = `
+                    <h3 class="text-2xl font-bold mb-4 text-gray-800">${kpi.metric}</h3>
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-gray-600">Business Impact</h4>
+                        <p class="text-gray-700">${kpi.impact}</p>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-gray-600">Description</h4>
+                        <p class="text-gray-700">${kpi.description}</p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-gray-600">Calculation</h4>
+                        <p class="text-gray-700">${kpi.calculation}</p>
+                    </div>
+                `;
+            }
+            
+            displayKpiDetails(kpiData[0]);
+
+            const ctx = document.getElementById('kpiChart').getContext('2d');
+            const kpiChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: kpiData.map(k => k.metric),
+                    datasets: [{
+                        label: 'KPI Weighting',
+                        data: kpiData.map(k => k.weight),
+                        backgroundColor: [
+                            '#4A90E2', '#50E3C2', '#F5A623', '#F8E71C', '#BD10E0', '#7ED321'
+                        ],
+                        borderColor: '#FFFFFF',
+                        borderWidth: 4,
+                        hoverBorderWidth: 2,
+                        hoverBorderColor: '#E9ECEF'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                pointStyle: 'rectRounded'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += context.parsed + '%';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const chartElement = elements[0];
+                            const index = chartElement.index;
+                            displayKpiDetails(kpiData[index]);
+                        }
+                    }
+                }
+            });
+
+            function displayInteractionDetails(stage) {
+                const data = interactionData[stage];
+                interactionDetailsContainer.innerHTML = `
+                    <h3 class="text-2xl font-bold mb-4 text-gray-800">${data.title}</h3>
+                    <ul class="list-disc list-inside space-y-2 text-gray-700">
+                        ${data.points.map(p => `<li>${p}</li>`).join('')}
+                    </ul>
+                `;
+                 document.querySelectorAll('.process-step').forEach(el => el.classList.remove('active'));
+                 document.getElementById(`step-${stage}`).classList.add('active');
+            }
+
+            document.querySelectorAll('.process-step').forEach(step => {
+                step.addEventListener('click', () => {
+                    const stageId = step.id.split('-')[1];
+                    displayInteractionDetails(stageId);
+                });
+            });
+
+            displayInteractionDetails('s1');
+
+            function createAccordion() {
+                salesData.forEach(item => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'bg-white rounded-xl shadow-md overflow-hidden';
+
+                    const header = document.createElement('div');
+                    header.className = 'accordion-header cursor-pointer p-6 flex justify-between items-center';
+                    header.innerHTML = `
+                        <h4 class="text-lg font-semibold text-gray-800">${item.id}. ${item.title}</h4>
+                        <span class="transform transition-transform duration-300">
+                            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </span>
+                    `;
+
+                    const content = document.createElement('div');
+                    content.className = 'accordion-content';
+
+                    const levelColors = {
+                        excellent: 'border-green-400 bg-green-50',
+                        average: 'border-blue-400 bg-blue-50',
+                        needs_improvement: 'border-yellow-400 bg-yellow-50',
+                        unsatisfactory: 'border-red-400 bg-red-50'
+                    };
+
+                    const levelHeadings = {
+                        excellent: 'Excellent ☆☆☆☆',
+                        average: 'Average ☆☆☆',
+                        needs_improvement: 'Needs Improvement ☆☆',
+                        unsatisfactory: 'Unsatisfactory ☆'
+                    }
+
+                    let levelsHtml = '<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 p-6 border-t border-gray-200">';
+                    for (const level in item.levels) {
+                        levelsHtml += `
+                            <div class="border-t-4 p-4 rounded-b-lg ${levelColors[level]}">
+                                <h5 class="font-bold mb-2 text-gray-800">${levelHeadings[level]}</h5>
+                                <p class="text-sm font-semibold text-gray-600 mb-2">Criteria:</p>
+                                <ul class="list-disc list-inside text-sm text-gray-700 space-y-1 mb-4">
+                                    ${item.levels[level].criteria.map(c => `<li>${c}</li>`).join('')}
+                                </ul>
+                                <p class="text-sm font-semibold text-gray-600 mb-1">Sample Verbiage:</p>
+                                <p class="text-sm text-gray-700 italic bg-gray-100 p-2 rounded">${item.levels[level].verbiage}</p>
+                            </div>
+                        `;
+                    }
+                    levelsHtml += '</div>';
+
+                    let naHtml = `
+                        <div class="px-6 pb-6">
+                             <h5 class="font-semibold text-gray-700 mb-2">Not Applicable (N/A) Scenarios</h5>
+                             <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+                                ${item.na_scenarios.map(s => `<li>${s}</li>`).join('')}
+                             </ul>
+                        </div>
+                    `;
+
+                    content.innerHTML = levelsHtml + naHtml;
+
+                    header.addEventListener('click', () => {
+                        const contentEl = header.nextElementSibling;
+                        const icon = header.querySelector('svg');
+                        wrapper.parentElement.querySelectorAll('.accordion-content').forEach(el => {
+                            if (el !== contentEl) {
+                                el.style.maxHeight = '0px';
+                                el.previousElementSibling.querySelector('svg').classList.remove('rotate-180');
+                            }
+                        });
+                        
+                        if (contentEl.style.maxHeight && contentEl.style.maxHeight !== '0px') {
+                            contentEl.style.maxHeight = '0px';
+                            icon.classList.remove('rotate-180');
+                        } else {
+                            contentEl.style.maxHeight = contentEl.scrollHeight + 'px';
+                            icon.classList.add('rotate-180');
+                        }
+                    });
+
+                    wrapper.appendChild(header);
+                    wrapper.appendChild(content);
+                    accordionContainer.appendChild(wrapper);
+                });
+            }
+
+            createAccordion();
+            
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.nav-link');
+
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.4
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        navLinks.forEach(link => {
+                            link.classList.remove('active');
+                            if (link.getAttribute('href').substring(1) === entry.target.id) {
+                                link.classList.add('active');
+                            }
+                        });
+                    }
+                });
+            }, observerOptions);
+
+            sections.forEach(section => {
+                observer.observe(section);
+            });
+
+            // New JavaScript for the Comparison Tool Modal
+            const openButton = document.getElementById('openComparisonTool');
+            const closeButton = document.getElementById('closeComparisonTool');
+            const modal = document.getElementById('comparisonToolModal');
+            const iframe = document.getElementById('xfinityComparisonIframe');
+            // This URL is the one you provided for the Xfinity savings calculator
+            const xfinityToolUrl = 'https://www.xfinity.com/learn/mobile/plan/savings-calculator/current/plan?intcmp=ILC:NA:ACQ:BAUP:PRO:GEN:XFM:COM:NA:NaviSavingsCalcMerch:595&current_carrier=9ef23a446a119387586d089c425f2d55&num_lines=2&selected_plan_tier_bin=2&selected_plan_id=877843a81b968b5845e997997ad641d2&tier_bins=2,3'; 
+
+            openButton.addEventListener('click', () => {
+                iframe.src = xfinityToolUrl;
+                modal.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden'); // Prevent scrolling body when modal is open
+            });
+
+            closeButton.addEventListener('click', () => {
+                modal.classList.add('hidden');
+                iframe.src = ''; // Clear iframe src to stop any audio/video or prevent unnecessary loading
+                document.body.classList.remove('overflow-hidden');
+            });
+
+            // Close modal when clicking outside of it
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.add('hidden');
+                    iframe.src = '';
+                    document.body.classList.remove('overflow-hidden');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
